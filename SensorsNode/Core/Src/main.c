@@ -26,6 +26,8 @@
 #include "usb_device.h"
 #include "gpio.h"
 
+#include "relays.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "AT45DBxx/AT45DBxx.h"
@@ -38,6 +40,11 @@
 #include "BME280/bme280.h"
 #include "Si7021/Si7021.h"
 #include "Si1132/Si1132.h"
+
+#include "usbd_cdc_if.h"
+
+#include <stdio.h>
+#include <string.h>
 
 /* USER CODE END Includes */
 
@@ -107,12 +114,12 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_USB_DEVICE_Init();
+  //MX_USB_DEVICE_Init();
   MX_RTC_Init();
-  MX_I2C2_Init();
+  //MX_I2C2_Init();
   MX_SPI1_Init();
-  MX_TIM2_Init();
-  MX_I2C1_Init();
+  //MX_TIM2_Init();
+  //MX_I2C1_Init();
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 
@@ -123,14 +130,17 @@ int main(void)
   ILI9341_Init();
   ILI9341_FillScreen(ILI9341_BLACK);
 
+  Relays_Init();
+
+  /*
 	bmp280_init_default_params(&bmp280.params);
 	bmp280.addr = BMP280_I2C_ADDRESS_1;
 	bmp280.i2c = &hi2c2;
 
 	while (!bmp280_init(&bmp280, &bmp280.params)) {
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(LED_Port, LED_2, GPIO_PIN_SET);
 		HAL_Delay(100);
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(LED_Port, LED_2, GPIO_PIN_RESET);
 		HAL_Delay(100);
 	}
 
@@ -140,7 +150,7 @@ int main(void)
 
   // USB Connect
   HAL_Delay(100);
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_15, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(USB_Connect_Port, USB_Connect_Pin, GPIO_PIN_SET);
   HAL_Delay(100);
   /* USER CODE END 2 */
 
@@ -149,44 +159,57 @@ int main(void)
 
 	RTC_TimeTypeDef sTime = { 0 };
 	RTC_DateTypeDef sDate = { 0 };
+
 	HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
 	HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
-	ILI9341_WriteString(3, 3, "00:00:00 00.00", Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
+	ILI9341_WriteString(3, 3, "00:00:00", Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
+	ILI9341_WriteString(3, 33, "00.00.00", Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
 	ILI9341_WriteNumSigns(3, 3, sTime.Hours, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
 	ILI9341_WriteNumSigns(51, 3, sTime.Minutes, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
 	ILI9341_WriteNumSigns(99, 3, sTime.Seconds, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
-	ILI9341_WriteNumSigns(147, 3, sDate.Date, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
-	ILI9341_WriteNumSigns(195, 3, sDate.Month, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
+	ILI9341_WriteNumSigns(3, 33, sDate.Date, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
+	ILI9341_WriteNumSigns(51, 33, sDate.Month, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
+	ILI9341_WriteNumSigns(99, 33, sDate.Year, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
 
-	ILI9341_WriteString(3, 63,  "T:00 H:00 P:000000", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-	ILI9341_WriteString(3, 93, "T:00 H:00", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-	ILI9341_WriteString(3, 123, "IR: 000000", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-	ILI9341_WriteString(3, 153, "Vis:000000", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-	ILI9341_WriteString(3, 183, "UV: 000000", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
+	ILI9341_WriteString(3, 93,  "T:00 H:00 P:000000", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
+	ILI9341_WriteString(3, 123, "T:00 H:00", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
+	ILI9341_WriteString(3, 153, "IR: 000000", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
+	ILI9341_WriteString(3, 183, "Vis:000000", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
+	ILI9341_WriteString(3, 213, "UV: 000000", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
+	ILI9341_WriteString(3, 243, "UV: 000000", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
+	ILI9341_WriteString(3, 273, "UV: 000000", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
 
 	initialized = true;
 	bool success = false;
 	float si_humidity, si_temperature, bs_humidity, bs_temperature, bs_pressure;
 	int bs_t = 0, si_t = 0, to = 0, bs_h = 0, si_h = 0, bs_p = 0, co2 = 0, tVOC = 0;
 	uint32_t si_ir = 0, si_vis = 0, si_uv = 0;
+
+  char buffer_tx[64];
+  uint8_t buffer_tx_len = 0;
+  uint8_t enc = 0;
+  bool state = true;
   while (1)
   {
-		uint16_t enc = TIM2->CNT;
-		ILI9341_WriteNumSigns(3, 33, enc, 3, Font_11x18, ILI9341_YELLOW, ILI9341_BLACK);
-		ILI9341_WriteNumSigns(60, 33, push, 3, Font_11x18, ILI9341_YELLOW, ILI9341_BLACK);
+		ILI9341_WriteNumSigns(3, 63, enc, 3, Font_11x18, ILI9341_YELLOW, ILI9341_BLACK);
+		ILI9341_WriteNumSigns(60, 63, push, 3, Font_11x18, ILI9341_YELLOW, ILI9341_BLACK);
 
 		HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
 		HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+
+		Relays_Update(&sTime);
+
 		uint8_t seconds = sTime.Seconds;
 		ILI9341_WriteNumSigns(99, 3, seconds, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
 
-		if (seconds == 0) {
+		if (seconds % 10 == 0) {
 			ILI9341_WriteNumSigns(3, 3, sTime.Hours, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
 			ILI9341_WriteNumSigns(51, 3, sTime.Minutes, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
-			ILI9341_WriteNumSigns(147, 3, sDate.Date, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
-			ILI9341_WriteNumSigns(195, 3, sDate.Month, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
+			ILI9341_WriteNumSigns(3, 33, sDate.Date, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
+			ILI9341_WriteNumSigns(51, 33, sDate.Month, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
+			ILI9341_WriteNumSigns(99, 33, sDate.Year, 2                  , Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
 		}
-
+/*
 		success = true;
 		if (bmp280_read_float(&bmp280, &bs_temperature, &bs_pressure, &bs_humidity)) {
 			bs_t = (int) bs_temperature;
@@ -194,9 +217,9 @@ int main(void)
 			bs_h = (int) bs_humidity;
 		} else {
 			success &= false;
-			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(LED_Port, LED_2, GPIO_PIN_SET);
 			HAL_Delay(100);
-			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(LED_Port, LED_2, GPIO_PIN_RESET);
 			HAL_Delay(100);
 		}
 
@@ -205,9 +228,9 @@ int main(void)
 			si_h = (int) si_humidity;
 		} else {
 			success &= false;
-			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(LED_Port, LED_2, GPIO_PIN_SET);
 			HAL_Delay(100);
-			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(LED_Port, LED_2, GPIO_PIN_RESET);
 			HAL_Delay(100);
 		}
 
@@ -215,9 +238,9 @@ int main(void)
 
 		} else {
 			success &= false;
-			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(LED_Port, LED_2, GPIO_PIN_SET);
 			HAL_Delay(100);
-			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(LED_Port, LED_2, GPIO_PIN_RESET);
 			HAL_Delay(100);
 		}
 
@@ -232,9 +255,16 @@ int main(void)
 			ILI9341_WriteNumSigns(47, 123, si_ir, 6, Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
 			ILI9341_WriteNumSigns(47, 153, si_vis, 6, Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
 			ILI9341_WriteNumSigns(47, 183, si_uv, 6, Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-		}
 
-		HAL_Delay(100);
+
+			buffer_tx_len = sprintf(buffer_tx, "%02d:%02d:%02d %02d.%02d T:%02d H:%02d P:%06d \r\n",
+					sTime.Hours, sTime.Minutes, sTime.Seconds, sDate.Date, sDate.Month, si_t, si_h, bs_p);
+
+			CDC_Transmit_FS((uint8_t*)buffer_tx, buffer_tx_len);
+
+		}
+*/
+		HAL_Delay(250);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -291,9 +321,6 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
-/**
- * @brief This function handles RTC global interrupt.
- */
 void RTC_IRQHandler(void) {
 	HAL_RTCEx_RTCIRQHandler(&hrtc);
 	if (!initialized) {
@@ -302,31 +329,28 @@ void RTC_IRQHandler(void) {
 
 	counter++;
 	uint8_t state = counter % 3;
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, state == 0);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, state == 1);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, state == 2);
+	HAL_GPIO_WritePin(LED_Port, LED_0, state == 0);
+	HAL_GPIO_WritePin(LED_Port, LED_1, state == 1);
+	HAL_GPIO_WritePin(LED_Port, LED_2, state == 2);
 }
 
 void EXTI2_IRQHandler() {
 	/* Clear Pending bit */
-	//HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_2);
+	//HAL_GPIO_EXTI_IRQHandler(Encoder_Button);
 	EXTI->PR = (1uL << (EXTI_LINE_2 & EXTI_PIN_MASK));
 	if (!initialized) {
 		return;
 	}
 
 	//check pin state
-	if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_2)) {
-		//push = 0;
-
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);
+	if (HAL_GPIO_ReadPin(Encoder_Port, Encoder_Button)) {
+		HAL_GPIO_WritePin(LED_Port, LED_0, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(LED_Port, LED_1, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(LED_Port, LED_2, GPIO_PIN_SET);
 		push++;
 	} else {
 
 	}
-
 }
 
 /* USER CODE END 4 */

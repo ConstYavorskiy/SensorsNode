@@ -1868,6 +1868,9 @@ static void RTC_DateUpdate(RTC_HandleTypeDef *hrtc, uint32_t DayElapsed)
 
   /* Update day of the week */
   hrtc->DateToUpdate.WeekDay = RTC_WeekDayNum(year, month, day);
+
+  /* Backup date */
+  RTC_DateBackup(&hrtc->DateToUpdate);
 }
 
 /**
