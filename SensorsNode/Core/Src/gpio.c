@@ -47,24 +47,13 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LED_Port, LED_0|LED_1|LED_2|SPI2_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED_Port, LED_0|LED_1|LED_2|USB_Connect_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|USB_Connect_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pins : PBPin PBPin PBPin PBPin PBPin */
-  GPIO_InitStruct.Pin = LED_0|LED_1|LED_2|SPI2_CS_Pin;
+  GPIO_InitStruct.Pin = LED_0|LED_1|LED_2|USB_Connect_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LED_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : PA8 PA9 PA10 PAPin */
-  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|USB_Connect_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure Encoder */
   /*

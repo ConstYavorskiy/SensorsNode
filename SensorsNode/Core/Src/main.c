@@ -1,23 +1,3 @@
-/* USER CODE BEGIN Header */
-/**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
-  * All rights reserved.</center></h2>
-  *
-  * This software component is licensed by ST under Ultimate Liberty license
-  * SLA0044, the "License"; You may not use this file except in compliance with
-  * the License. You may obtain a copy of the License at:
-  *                             www.st.com/SLA0044
-  *
-  ******************************************************************************
-  */
-/* USER CODE END Header */
-/* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "i2c.h"
 #include "rtc.h"
@@ -28,14 +8,13 @@
 
 #include "relays.h"
 
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
 #include "AT45DBxx/AT45DBxx.h"
 #include "AT45DBxx/AT45DBxxConfig.h"
 
 #include "ili9341/ili9341.h"
 //#include "ili9341/ili9341_touch.h"
 #include "ili9341/fonts.h"
+#include "ili9341/tsc.h"
 
 #include "BME280/bme280.h"
 #include "Si7021/Si7021.h"
@@ -46,175 +25,155 @@
 #include <stdio.h>
 #include <string.h>
 
-/* USER CODE END Includes */
-
-/* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
-
-/* USER CODE END PTD */
-
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-/* USER CODE END PD */
-
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
-
-/* Private variables ---------------------------------------------------------*/
-
-/* USER CODE BEGIN PV */
-BMP280_HandleTypedef bmp280;
 
 
-static uint32_t counter = 0;
-static uint16_t encoder = 0;
-static uint16_t push = 0;
-static bool initialized = false;
+static BMP280_HandleTypedef bmp280;
+static TSC_ENVIRONMENT TSC_Env;
+static TSC_STATE TSC_State;
 
-/* USER CODE END PV */
+static uint16_t counter = 0, fps = 0, iters = 0;
+static bool initialized = false, has_BME280 = false, has_Si1132 = false, has_Si7021 = false, has_TSC = true, has_AT45db = false, has_USB_Connection = false;
 
-/* Private function prototypes -----------------------------------------------*/
-void SystemClock_Config(void);
-/* USER CODE BEGIN PFP */
 
-/* USER CODE END PFP */
+static void SystemClock_Config(void);
 
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
-
-/**
-  * @brief  The application entry point.
-  * @retval int
-  */
-int main(void)
+static void InitializeDevices()
 {
-  /* USER CODE BEGIN 1 */
-
-  /* USER CODE END 1 */
-
-  /* MCU Configuration--------------------------------------------------------*/
-
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
-
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
-
-  /* Configure the system clock */
-  SystemClock_Config();
-
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
-
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  //MX_USB_DEVICE_Init();
-  MX_RTC_Init();
-  //MX_I2C2_Init();
-  MX_SPI1_Init();
-  //MX_TIM2_Init();
-  //MX_I2C1_Init();
+  // AT45db
+ /* MX_SPI1_Init();
+  has_AT45db = AT45dbxx_Init();
+*/
+  // ILI9341
   MX_SPI2_Init();
-  /* USER CODE BEGIN 2 */
-
-  AT45dbxx_Init();
-
-
-  ILI9341_Unselect();
   ILI9341_Init();
-  ILI9341_FillScreen(ILI9341_BLACK);
+  ILI9341_FillScreen(BLACK);
+
+  MX_I2C2_Init();
+  if (has_TSC) {
+	TSC_init(&hi2c2);
+  }
+
+  // BME280
+  bmp280_init_default_params(&bmp280.params);
+  bmp280.addr = BMP280_I2C_ADDRESS_1;
+  bmp280.i2c = &hi2c2;
+  has_BME280 = bmp280_init(&bmp280, &bmp280.params);
+
+  // Si1132
+  has_Si1132 = Si1132_init(&hi2c2, SI1132_SLAVE_ADDRESS);
+
+  // Si7021
+  if (has_Si7021){
+	rst_Si7021();
+  }
 
   Relays_Init();
+}
 
-  /*
-	bmp280_init_default_params(&bmp280.params);
-	bmp280.addr = BMP280_I2C_ADDRESS_1;
-	bmp280.i2c = &hi2c2;
+static void InitializeUI()
+{
+  ILI9341_WriteString(3, 3, "00:00:00 00.00", Font_16x26, GREEN, BLACK);
+  ILI9341_WriteString(3, 63, "T        H     P" , Font_11x18, CYAN, BLACK);
+  ILI9341_WriteString(3, 153, "IR: 00000", Font_11x18, CYAN, BLACK);
+  ILI9341_WriteString(3, 183, "Vis:00000", Font_11x18, CYAN, BLACK);
+  ILI9341_WriteString(3, 213, "UV: 00000", Font_11x18, CYAN, BLACK);
 
-	while (!bmp280_init(&bmp280, &bmp280.params)) {
-		HAL_GPIO_WritePin(LED_Port, LED_2, GPIO_PIN_SET);
-		HAL_Delay(100);
-		HAL_GPIO_WritePin(LED_Port, LED_2, GPIO_PIN_RESET);
-		HAL_Delay(100);
-	}
+  ILI9341_WriteString(3, 33, "V", Font_11x18, YELLOW, BLACK);
+  ILI9341_WriteString(12, 40, "IN", Font_7x10, YELLOW, BLACK);
+  ILI9341_WriteString(80, 33, "V", Font_11x18, YELLOW, BLACK);
+  ILI9341_WriteString(88, 40, "BAT", Font_7x10, YELLOW, BLACK);
+}
 
-	rst_Si7021();
-	Si1132_init(&hi2c2, SI1132_SLAVE_ADDRESS);
+int main(void)
+{
+  HAL_Init();
+  SystemClock_Config();
+  MX_RTC_Init();
+  MX_GPIO_Init();
 
+  //MX_TIM2_Init();
+  //MX_I2C1_Init();
+  //MX_USB_DEVICE_Init();
+
+  InitializeDevices();
 
   // USB Connect
-  HAL_Delay(100);
-  HAL_GPIO_WritePin(USB_Connect_Port, USB_Connect_Pin, GPIO_PIN_SET);
-  HAL_Delay(100);
-  /* USER CODE END 2 */
+  if (has_USB_Connection) {
+    HAL_Delay(100);
+    HAL_GPIO_WritePin(USB_Connect_Port, USB_Connect_Pin, GPIO_PIN_SET);
+  }
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
+  RTC_TimeTypeDef sTime = { 0 };
+  RTC_DateTypeDef sDate = { 0 };
 
-	RTC_TimeTypeDef sTime = { 0 };
-	RTC_DateTypeDef sDate = { 0 };
-
-	HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
-	HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
-	ILI9341_WriteString(3, 3, "00:00:00", Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
-	ILI9341_WriteString(3, 33, "00.00.00", Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
-	ILI9341_WriteNumSigns(3, 3, sTime.Hours, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
-	ILI9341_WriteNumSigns(51, 3, sTime.Minutes, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
-	ILI9341_WriteNumSigns(99, 3, sTime.Seconds, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
-	ILI9341_WriteNumSigns(3, 33, sDate.Date, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
-	ILI9341_WriteNumSigns(51, 33, sDate.Month, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
-	ILI9341_WriteNumSigns(99, 33, sDate.Year, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
-
-	ILI9341_WriteString(3, 93,  "T:00 H:00 P:000000", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-	ILI9341_WriteString(3, 123, "T:00 H:00", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-	ILI9341_WriteString(3, 153, "IR: 000000", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-	ILI9341_WriteString(3, 183, "Vis:000000", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-	ILI9341_WriteString(3, 213, "UV: 000000", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-	ILI9341_WriteString(3, 243, "UV: 000000", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-	ILI9341_WriteString(3, 273, "UV: 000000", Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-
-	initialized = true;
-	bool success = false;
-	float si_humidity, si_temperature, bs_humidity, bs_temperature, bs_pressure;
-	int bs_t = 0, si_t = 0, to = 0, bs_h = 0, si_h = 0, bs_p = 0, co2 = 0, tVOC = 0;
-	uint32_t si_ir = 0, si_vis = 0, si_uv = 0;
+  bool success = false;
+  float si_humidity, si_temperature, bs_humidity, bs_temperature, bs_pressure;
+  int bs_t = 0, si_t = 0, to = 0, bs_h = 0, si_h = 0, bs_p = 0, co2 = 0, tVOC = 0;
+  uint32_t si_ir = 0, si_vis = 0, si_uv = 0;
 
   char buffer_tx[64];
   uint8_t buffer_tx_len = 0;
-  uint8_t enc = 0;
-  bool state = true;
+
+  InitializeUI();
+
   while (1)
   {
-		ILI9341_WriteNumSigns(3, 63, enc, 3, Font_11x18, ILI9341_YELLOW, ILI9341_BLACK);
-		ILI9341_WriteNumSigns(60, 63, push, 3, Font_11x18, ILI9341_YELLOW, ILI9341_BLACK);
+	HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+	HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
 
-		HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
-		HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+	uint8_t seconds = sTime.Seconds;
+	ILI9341_WriteNumSigns(99, 3, seconds, 2, Font_16x26, GREEN, BLACK);
+	ILI9341_WriteNumSigns(170, 33, fps, 2, Font_11x18, YELLOW, BLACK);
 
-		Relays_Update(&sTime);
+	if (!initialized || seconds % 10 == 0) {
+		ILI9341_WriteNumSigns(3,   3, sTime.Hours, 2, Font_16x26, GREEN, BLACK);
+		ILI9341_WriteNumSigns(51,  3, sTime.Minutes, 2, Font_16x26, GREEN, BLACK);
+		ILI9341_WriteNumSigns(147, 3, sDate.Date, 2, Font_16x26, GREEN, BLACK);
+		ILI9341_WriteNumSigns(195, 3, sDate.Month, 2, Font_16x26, GREEN, BLACK);
 
-		uint8_t seconds = sTime.Seconds;
-		ILI9341_WriteNumSigns(99, 3, seconds, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
-
-		if (seconds % 10 == 0) {
-			ILI9341_WriteNumSigns(3, 3, sTime.Hours, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
-			ILI9341_WriteNumSigns(51, 3, sTime.Minutes, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
-			ILI9341_WriteNumSigns(3, 33, sDate.Date, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
-			ILI9341_WriteNumSigns(51, 33, sDate.Month, 2, Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
-			ILI9341_WriteNumSigns(99, 33, sDate.Year, 2                  , Font_16x26, ILI9341_GREEN, ILI9341_BLACK);
+		if (!initialized) {
+			initialized = true;
 		}
-/*
-		success = true;
+	}
+
+	Relays_Update(&sTime);
+
+	if (has_TSC) {
+		TSC_GetEnvironment(&TSC_Env);
+		ILI9341_WriteNumSigns(30, 33, TSC_Env.Vin, 3, Font_11x18, YELLOW, BLACK);
+		ILI9341_FillRectangle(38, 48, 2, 3, YELLOW);
+		ILI9341_WriteNumSigns(112, 33, TSC_Env.Vbat, 3, Font_11x18, YELLOW, BLACK);
+		ILI9341_FillRectangle(121, 48, 2, 3, YELLOW);
+
+		ILI9341_WriteNumSigns(22, 63, TSC_Env.Temp0, 2, Font_11x18, YELLOW, BLACK);
+
+		TSC_GetTouchState(&TSC_State);
+		// ILI9341_WriteNumSigns(3, 93, TSC_State.X, 4, Font_11x18, YELLOW, BLACK);
+		// ILI9341_WriteNumSigns(83, 93, TSC_State.Y, 4, Font_11x18, YELLOW, BLACK);
+		// ILI9341_WriteNumSigns(163, 93, TSC_State.Z, 4, Font_11x18, YELLOW, BLACK);
+		if (TSC_State.Z > 100)
+		{
+			uint16_t x0 = 330, xm = 3800, y0 = 350, ym = 3900;
+			uint32_t x,y;
+			x = 240 * (TSC_State.X - x0) / (xm - x0);
+			y = 320 * (TSC_State.Y - y0) / (ym - y0);
+			ILI9341_FillRectangle(x, y, 3, 3, PINK);
+
+			// ILI9341_WriteNumSigns(3, 123, x, 4, Font_11x18, YELLOW, BLACK);
+			// ILI9341_WriteNumSigns(83, 123, y, 4, Font_11x18, YELLOW, BLACK);
+		}
+	}
+
+	success = true;
+	if (has_BME280) {
 		if (bmp280_read_float(&bmp280, &bs_temperature, &bs_pressure, &bs_humidity)) {
 			bs_t = (int) bs_temperature;
 			bs_p = (int) bs_pressure;
 			bs_h = (int) bs_humidity;
+
+			ILI9341_WriteNumSigns(58, 63, bs_t, 2, Font_11x18, CYAN, BLACK);
+			ILI9341_WriteNumSigns(120, 63, bs_h, 2, Font_11x18, CYAN, BLACK);
+			ILI9341_WriteNumSigns(185, 63, bs_p, 4, Font_11x18, CYAN, BLACK);
 		} else {
 			success &= false;
 			HAL_GPIO_WritePin(LED_Port, LED_2, GPIO_PIN_SET);
@@ -222,10 +181,15 @@ int main(void)
 			HAL_GPIO_WritePin(LED_Port, LED_2, GPIO_PIN_RESET);
 			HAL_Delay(100);
 		}
+	}
 
+	if (has_Si7021) {
 		if (r_both_Si7021(&si_humidity, &si_temperature) == 0) {
 			si_t = (int) si_temperature;
 			si_h = (int) si_humidity;
+
+			ILI9341_WriteNumSigns(25, 123, si_t, 2, Font_11x18, CYAN, BLACK);
+			ILI9341_WriteNumSigns(80, 123, si_h, 2, Font_11x18, CYAN, BLACK);
 		} else {
 			success &= false;
 			HAL_GPIO_WritePin(LED_Port, LED_2, GPIO_PIN_SET);
@@ -233,9 +197,13 @@ int main(void)
 			HAL_GPIO_WritePin(LED_Port, LED_2, GPIO_PIN_RESET);
 			HAL_Delay(100);
 		}
+	}
 
+	if (has_Si1132) {
 		if (Si1132_read(&si_ir, &si_vis, &si_uv)) {
-
+			ILI9341_WriteNumSigns(47, 153, si_ir, 5, Font_11x18, CYAN, BLACK);
+			ILI9341_WriteNumSigns(47, 183, si_vis, 5, Font_11x18, CYAN, BLACK);
+			ILI9341_WriteNumSigns(47, 213, si_uv, 5, Font_11x18, CYAN, BLACK);
 		} else {
 			success &= false;
 			HAL_GPIO_WritePin(LED_Port, LED_2, GPIO_PIN_SET);
@@ -243,40 +211,25 @@ int main(void)
 			HAL_GPIO_WritePin(LED_Port, LED_2, GPIO_PIN_RESET);
 			HAL_Delay(100);
 		}
+	}
 
-		if (success) {
-			ILI9341_WriteNumSigns(25, 63, bs_t, 2, Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-			ILI9341_WriteNumSigns(80, 63, bs_h, 2, Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-			ILI9341_WriteNumSigns(135, 63, bs_p, 6, Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-
-			ILI9341_WriteNumSigns(25, 93, si_t, 2, Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-			ILI9341_WriteNumSigns(80, 93, si_h, 2, Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-
-			ILI9341_WriteNumSigns(47, 123, si_ir, 6, Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-			ILI9341_WriteNumSigns(47, 153, si_vis, 6, Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
-			ILI9341_WriteNumSigns(47, 183, si_uv, 6, Font_11x18, ILI9341_CYAN, ILI9341_BLACK);
+    if (success) {
 
 
+/*
 			buffer_tx_len = sprintf(buffer_tx, "%02d:%02d:%02d %02d.%02d T:%02d H:%02d P:%06d \r\n",
 					sTime.Hours, sTime.Minutes, sTime.Seconds, sDate.Date, sDate.Month, si_t, si_h, bs_p);
 
 			CDC_Transmit_FS((uint8_t*)buffer_tx, buffer_tx_len);
-
-		}
 */
-		HAL_Delay(250);
-    /* USER CODE END WHILE */
+    }
 
-    /* USER CODE BEGIN 3 */
+    iters++;
+    HAL_Delay(200);
   }
-  /* USER CODE END 3 */
 }
 
-/**
-  * @brief System Clock Configuration
-  * @retval None
-  */
-void SystemClock_Config(void)
+static void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
@@ -319,14 +272,13 @@ void SystemClock_Config(void)
   }
 }
 
-/* USER CODE BEGIN 4 */
-
 void RTC_IRQHandler(void) {
 	HAL_RTCEx_RTCIRQHandler(&hrtc);
 	if (!initialized) {
 		return;
 	}
-
+	fps = iters;
+	iters = 0;
 	counter++;
 	uint8_t state = counter % 3;
 	HAL_GPIO_WritePin(LED_Port, LED_0, state == 0);
@@ -334,8 +286,9 @@ void RTC_IRQHandler(void) {
 	HAL_GPIO_WritePin(LED_Port, LED_2, state == 2);
 }
 
+/*
 void EXTI2_IRQHandler() {
-	/* Clear Pending bit */
+	// Clear Pending bit
 	//HAL_GPIO_EXTI_IRQHandler(Encoder_Button);
 	EXTI->PR = (1uL << (EXTI_LINE_2 & EXTI_PIN_MASK));
 	if (!initialized) {
@@ -352,13 +305,8 @@ void EXTI2_IRQHandler() {
 
 	}
 }
+*/
 
-/* USER CODE END 4 */
-
-/**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
@@ -386,5 +334,3 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

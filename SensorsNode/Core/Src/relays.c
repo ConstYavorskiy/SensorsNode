@@ -19,30 +19,27 @@ void Relays_SetState(uint8_t relay, bool state)
 	//HAL_GPIO_WritePin(Relay_Port, Relay1_Pin, state);
 }
 
-
+#define Relays_Pin Relay2_Pin // |Relay1_Pin
 void Relays_Update(RTC_TimeTypeDef *sTime)
 {
-	if (sTime->Hours < 8 || sTime->Hours > 21)
+	if (sTime->Hours < 7 || sTime->Hours > 21)
 	{
-		HAL_GPIO_WritePin(Relay_Port, Relay1_Pin, 0);
-		//HAL_GPIO_WritePin(Relay_Port, Relay2_Pin, 0);
+		HAL_GPIO_WritePin(Relay_Port, Relays_Pin, 0);
 		return;
 	}
 
-	if (sTime->Hours < 9 || sTime->Hours > 20)
+	if (sTime->Hours < 8 || sTime->Hours > 20)
 	{
-		HAL_GPIO_WritePin(Relay_Port, Relay1_Pin, 1);
-		//HAL_GPIO_WritePin(Relay_Port, Relay2_Pin, 1);
+		HAL_GPIO_WritePin(Relay_Port, Relays_Pin, 1);
 		return;
 	}
 
-	if (sTime->Minutes >= 0 && sTime->Minutes <= 15)
+	if (sTime->Minutes >= 12 && sTime->Minutes <= 23
+	||  sTime->Minutes >= 36 && sTime->Minutes <= 47)
 	{
-		HAL_GPIO_WritePin(Relay_Port, Relay1_Pin, 1);
-		//HAL_GPIO_WritePin(Relay_Port, Relay2_Pin, 1);
+		HAL_GPIO_WritePin(Relay_Port, Relays_Pin, 1);
 		return;
 	}
 
-	HAL_GPIO_WritePin(Relay_Port, Relay1_Pin, 0);
-	HAL_GPIO_WritePin(Relay_Port, Relay2_Pin, 0);
+	HAL_GPIO_WritePin(Relay_Port, Relays_Pin, 0);
 }

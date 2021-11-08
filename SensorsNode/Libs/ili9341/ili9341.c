@@ -51,7 +51,28 @@ static void ILI9341_SetAddressWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint
 	ILI9341_WriteCommand(0x2C); // RAMWR
 }
 
+static void ILI9341_GPIO_Init()
+{
+	  HAL_GPIO_WritePin(ILI9341_RES_GPIO_Port, ILI9341_RES_Pin, GPIO_PIN_RESET);
+	  HAL_GPIO_WritePin(ILI9341_DC_GPIO_Port, ILI9341_DC_Pin, GPIO_PIN_RESET);
+	  HAL_GPIO_WritePin(ILI9341_CS_GPIO_Port, ILI9341_CS_Pin, GPIO_PIN_RESET);
+
+	  GPIO_InitTypeDef GPIO_InitStruct = {0};
+	  GPIO_InitStruct.Pin = ILI9341_RES_Pin;
+	  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	  GPIO_InitStruct.Pull = GPIO_NOPULL;
+	  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	  HAL_GPIO_Init(ILI9341_RES_GPIO_Port, &GPIO_InitStruct);
+
+	  GPIO_InitStruct.Pin = ILI9341_DC_Pin;
+	  HAL_GPIO_Init(ILI9341_DC_GPIO_Port, &GPIO_InitStruct);
+
+	  GPIO_InitStruct.Pin = ILI9341_CS_Pin;
+	  HAL_GPIO_Init(ILI9341_CS_GPIO_Port, &GPIO_InitStruct);
+}
+
 void ILI9341_Init() {
+	ILI9341_GPIO_Init();
 	ILI9341_Select();
 	ILI9341_Reset();
 

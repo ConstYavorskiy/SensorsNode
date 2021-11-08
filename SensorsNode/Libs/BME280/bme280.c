@@ -266,9 +266,9 @@ bool bmp280_read_fixed(BMP280_HandleTypedef *dev, int32_t *temperature, uint32_t
 	int32_t adc_temp;
 	uint8_t data[8];
 
-	bool is_bme280p = dev->id == BME280_CHIP_ID;
+	bool is_bme280 = dev->id == BME280_CHIP_ID;
 	// Need to read in one sequence to ensure they match.
-	size_t size = is_bme280p ? 8 : 6;
+	size_t size = is_bme280 ? 8 : 6;
 	if (read_data(dev, 0xf7, data, size)) {
 		return false;
 	}
@@ -280,7 +280,7 @@ bool bmp280_read_fixed(BMP280_HandleTypedef *dev, int32_t *temperature, uint32_t
 	*temperature = compensate_temperature(dev, adc_temp, &fine_temp);
 	*pressure = compensate_pressure(dev, adc_pressure, fine_temp);
 
-	if (is_bme280p) {
+	if (is_bme280) {
 		int32_t adc_humidity = data[6] << 8 | data[7];
 		*humidity = compensate_humidity(dev, adc_humidity, fine_temp);
 	}
@@ -294,7 +294,7 @@ bool bmp280_read_float(BMP280_HandleTypedef *dev, float *temperature, float *pre
 	uint32_t fixed_humidity;
 	if (bmp280_read_fixed(dev, &fixed_temperature, &fixed_pressure, &fixed_humidity)) {
 		*temperature = (float) fixed_temperature / 100;
-		*pressure = (float) fixed_pressure / 256;
+		*pressure = (float) fixed_pressure / 256 / 100;
 		if (dev->id == BME280_CHIP_ID) {
 			*humidity = (float) fixed_humidity / 1024;
 		}
