@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>SensorsNode</name>
+	<name>Probe</name>
 	<comment></comment>
 	<projects>
 	</projects>
@@ -34,7 +34,7 @@
 		<link>
 			<name>Libs</name>
 			<type>2</type>
-			<locationURI>$%7BPARENT-1-PROJECT_LOC%7D/Libs</locationURI>
+			<location>D:/Engineering/Projects/GIT-SensorsNode/Libs</location>
 		</link>
 	</linkedResources>
 </projectDescription>
