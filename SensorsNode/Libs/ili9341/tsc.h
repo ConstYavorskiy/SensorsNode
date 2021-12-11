@@ -7,10 +7,10 @@
 // Touch Screen Information structure
 typedef struct
 {
-	//uint16_t TouchDetected;
+	bool TouchDetected;
 	uint16_t X;
 	uint16_t Y;
-	uint16_t Z;
+	// uint16_t Z;
 } TSC_STATE;
 
 typedef struct

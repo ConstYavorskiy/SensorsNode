@@ -52,17 +52,17 @@ void MX_RTC_Init(void)
   }
   else
   {
-	  sTime.Hours = 21;
-	  sTime.Minutes = 15;
+	  sTime.Hours = 13;
+	  sTime.Minutes = 20;
 	  sTime.Seconds = 0;
 	  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK)
 	  {
 	    Error_Handler();
 	  }
 
-	  sDate.WeekDay = RTC_WEEKDAY_WEDNESDAY;
+	  sDate.WeekDay = RTC_WEEKDAY_SATURDAY;
 	  sDate.Month = 11;
-	  sDate.Date = 03;
+	  sDate.Date = 20;
 	  sDate.Year = 21;
 	  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK)
 	  {

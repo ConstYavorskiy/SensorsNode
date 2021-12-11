@@ -87,6 +87,7 @@ static void InitializeUI()
 int main(void)
 {
   HAL_Init();
+
   SystemClock_Config();
   MX_RTC_Init();
   MX_GPIO_Init();
@@ -148,19 +149,9 @@ int main(void)
 		ILI9341_WriteNumSigns(22, 63, TSC_Env.Temp0, 2, Font_11x18, YELLOW, BLACK);
 
 		TSC_GetTouchState(&TSC_State);
-		// ILI9341_WriteNumSigns(3, 93, TSC_State.X, 4, Font_11x18, YELLOW, BLACK);
-		// ILI9341_WriteNumSigns(83, 93, TSC_State.Y, 4, Font_11x18, YELLOW, BLACK);
-		// ILI9341_WriteNumSigns(163, 93, TSC_State.Z, 4, Font_11x18, YELLOW, BLACK);
-		if (TSC_State.Z > 100)
+		if (TSC_State.TouchDetected)
 		{
-			uint16_t x0 = 330, xm = 3800, y0 = 350, ym = 3900;
-			uint32_t x,y;
-			x = 240 * (TSC_State.X - x0) / (xm - x0);
-			y = 320 * (TSC_State.Y - y0) / (ym - y0);
-			ILI9341_FillRectangle(x, y, 3, 3, PINK);
-
-			// ILI9341_WriteNumSigns(3, 123, x, 4, Font_11x18, YELLOW, BLACK);
-			// ILI9341_WriteNumSigns(83, 123, y, 4, Font_11x18, YELLOW, BLACK);
+			ILI9341_FillRectangle(TSC_State.X, TSC_State.Y, 3, 3, PINK);
 		}
 	}
 
