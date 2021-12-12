@@ -22,7 +22,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "TMP75/TMP75.h"
+#include "Si7021/Si7021.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -32,6 +33,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -41,7 +43,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan1;
-
 I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN PV */
@@ -59,7 +60,8 @@ static void MX_I2C1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint8_t counter = 0;
+static uint8_t counter = 0;
+static float tmp = 0.0, si_humidity = 0.0, si_temperature = 0.0;
 /* USER CODE END 0 */
 
 /**
@@ -94,6 +96,9 @@ int main(void)
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
+  TMP75_Init(&hi2c1, 0b1001000);
+  Si7021_Init(&hi2c1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -107,12 +112,25 @@ int main(void)
 	HAL_GPIO_WritePin(LED_Port, LED_1, state == 1);
 	HAL_GPIO_WritePin(LED_Port, LED_2, state == 2);
 
+	HAL_Delay(500);
+
+	tmp = TMP75_Read_Temp();
+
+	if (Si7021_ReadBoth(&si_humidity, &si_temperature) == 0)
+	{
+
+
+	}
+
+	//printf("c = %d\n", counter);
+	//printf("t = %f\n", tmp);
+	//printf("h = %f\n", si_humidity);
     /* USER CODE END WHILE */
 
 
     /* USER CODE BEGIN 3 */
 
-	HAL_Delay(500);
+
   }
   /* USER CODE END 3 */
 }
@@ -280,6 +298,18 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+/*
+int _write(int file, char *ptr, int len)
+{
+  int DataIdx;
+
+  for (DataIdx = 0; DataIdx < len; DataIdx++)
+  {
+    ITM_SendChar(*ptr++);
+  }
+  return len;
+}
+*/
 
 /* USER CODE END 4 */
 

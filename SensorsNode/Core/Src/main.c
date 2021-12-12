@@ -64,7 +64,7 @@ static void InitializeDevices()
 
   // Si7021
   if (has_Si7021){
-	rst_Si7021();
+	  Si7021_Init(&hi2c2);
   }
 
   Relays_Init();
@@ -175,7 +175,7 @@ int main(void)
 	}
 
 	if (has_Si7021) {
-		if (r_both_Si7021(&si_humidity, &si_temperature) == 0) {
+		if (Si7021_ReadBoth(&si_humidity, &si_temperature)) {
 			si_t = (int) si_temperature;
 			si_h = (int) si_humidity;
 

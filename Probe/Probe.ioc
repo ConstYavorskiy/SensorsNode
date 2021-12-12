@@ -1,10 +1,15 @@
 #MicroXplorer Configuration settings - do not modify
-CAN1.BS1=CAN_BS1_2TQ
+CAN1.ABOM=ENABLE
+CAN1.AWUM=ENABLE
+CAN1.BS1=CAN_BS1_13TQ
 CAN1.BS2=CAN_BS2_2TQ
 CAN1.CalculateBaudRate=1000000
 CAN1.CalculateTimeBit=1000.00
-CAN1.CalculateTimeQuantum=200.0
-CAN1.IPParameters=CalculateTimeQuantum,CalculateTimeBit,CalculateBaudRate,BS1,BS2
+CAN1.CalculateTimeQuantum=62.5
+CAN1.IPParameters=CalculateTimeQuantum,CalculateTimeBit,CalculateBaudRate,BS1,BS2,Prescaler,ABOM,NART,TXFP,AWUM
+CAN1.NART=DISABLE
+CAN1.Prescaler=5
+CAN1.TXFP=ENABLE
 File.Version=6
 GPIO.groupedBy=Group By Peripherals
 I2C1.I2C_Speed_Mode=I2C_Fast
@@ -38,6 +43,8 @@ Mcu.UserName=STM32L432KBUx
 MxCube.Version=6.1.1
 MxDb.Version=DB.6.0.10
 NVIC.BusFault_IRQn=true\:0\:0\:false\:false\:true\:false\:false
+NVIC.CAN1_RX0_IRQn=true\:0\:0\:false\:false\:true\:true\:true
+NVIC.CAN1_SCE_IRQn=true\:0\:0\:false\:false\:true\:true\:true
 NVIC.DebugMonitor_IRQn=true\:0\:0\:false\:false\:true\:false\:false
 NVIC.ForceEnableDMAVector=true
 NVIC.HardFault_IRQn=true\:0\:0\:false\:false\:true\:false\:false

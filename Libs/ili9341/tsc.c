@@ -34,7 +34,7 @@ static uint16_t TSC_EnableTouchPanelIRQ()
 {
 	// Enable TSC2003 /PENIRQ
 	uint16_t response;
-	I2CSensor_read16(&hTSC, 0xD0, &response);
+	I2CSensor_read16_LSBMSB(&hTSC, 0xD0, &response);
 	return response;
 }
 
@@ -44,15 +44,11 @@ static uint16_t TSC_Read(uint8_t cmd)
 	uint8_t pCommand = ((cmd << 4) | TSC_cmd);
 	HAL_I2C_Master_Transmit(hTSC.i2c, hTSC.addr_shifted, &pCommand, 1, 1000);
 	uint8_t rx_buff[2];
-	HAL_I2C_Master_Receive(hTSC.i2c, hTSC.addr_shifted, &rx_buff, 2, 1000);
-
-
-	uint16_t response;
-	//I2CSensor_read(&hTSC, pCommand, &rx_buff, 2);
+	HAL_I2C_Master_Receive(hTSC.i2c, hTSC.addr_shifted, rx_buff, 2, 1000);
 
 
 	// and save only 10 MSBs for reducing noise
-	response = (((uint16_t)rx_buff[0] << 4) | ((uint16_t)rx_buff[1] >> 4));
+	uint16_t response = (((uint16_t)rx_buff[0] << 4) | ((uint16_t)rx_buff[1] >> 4));
 	return response;
 }
 
@@ -65,8 +61,6 @@ bool TSC_init(I2C_HandleTypeDef *hi2c) {
 	hTSC.i2c = hi2c;
 	hTSC.addr = TSC_DeviceAddress;
 	hTSC.addr_shifted = (TSC_DeviceAddress << 1);
-
-
 	return true;
 }
 
@@ -75,7 +69,7 @@ bool TSC_init(I2C_HandleTypeDef *hi2c) {
 void TSC_GetEnvironment(TSC_ENVIRONMENT* env)
 {
 	uint16_t t0 = TSC_Read(TSC_CMD_TEMP0);
-	uint16_t t1 = TSC_Read(TSC_CMD_TEMP1);
+	// uint16_t t1 = TSC_Read(TSC_CMD_TEMP1);
 
 	env->Temp0 = 3 * t0 / 100;
 	//env->Temp1 = 2.573 * (t1 - t0) - 273;

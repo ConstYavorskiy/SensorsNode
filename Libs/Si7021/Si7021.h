@@ -2,14 +2,12 @@
 #define SI7021_H_
 
 #include "main.h"
+#include "I2CSensor/I2CSensor.h"
 
 #define RES0 0
 #define RES1 7
 #define VDDS 6
 #define HTRE 2
-
-extern I2C_HandleTypeDef hi2c2;
-#define i2cHandle  hi2c2
 
 typedef enum Si7021_commands {
 	Humi_HM = 0xE5, // Measure Relative Humidity, Hold Master Mode
@@ -42,31 +40,9 @@ typedef enum Si7021_resolution {
 	H12_T14 = 0x00, H8_T12 = 0x01, H10_T13 = 0x80, H11_T11 = 0x81
 } Si7021_resolution_t;
 
-/************************************************************************************************
- * NAME :            int8_t r_firmware_rev_Si7021(void)
- *
- * DESCRIPTION :     Reads the Si7021 internal firmware revision.
- *
- * INPUTS :
- *       PARAMETERS:
- *            None
- *       GLOBALS :
- *            None
- * OUTPUTS :
- *       PARAMETERS:
- *            None
- *       GLOBALS :
- *            None
- *       RETURN :
- *            Type:   int8_t                 Error code:
- *            Values:  1                     firmware revision is 1.0
- *                     2                     firmware revision is 2.0
- *                    -1                     I2C error or invalid data
- *
- * NOTES :
- *
- */
-int8_t r_firmware_rev_Si7021(void);
+
+/* Reads the Si7021 internal firmware revision. */
+int8_t Si7021_firmware_rev();
 
 /************************************************************************************************
  * NAME :            int8_t VDD_warning_Si7021(void)
@@ -97,66 +73,6 @@ int8_t r_firmware_rev_Si7021(void);
  *
  */
 int8_t VDD_warning_Si7021(void);
-
-/************************************************************************************************
- * NAME :            int8_t r_single_Si7021(float* data, Si7021_measurement_type_t type)
- *
- * DESCRIPTION :     Initiates a measurement defined by the 'type' parameter and reads
- *                   back its result. It can be either a humidity or a temperature
- *                   measurement.
- *
- * INPUTS :
- *       PARAMETERS:
- *            Si7021_measurement_type_t      type      type of measurement to be done
- *       GLOBALS :
- *            None
- * OUTPUTS :
- *       PARAMETERS:
- *            float*                         data      pointer to memory location where the
- *                                                     measurement result will be stored
- *       GLOBALS :
- *            None
- *       RETURN :
- *            Type:   int8_t                 Error code:
- *            Values:  0                     OK
- *                    -1                     I2C error or invalid measurement type parameter
- *
- * NOTES :          The function uses the Hold Master Mode I2C command to request the measurement
- *                  and to read back the result.
- *
- */
-int8_t r_single_Si7021(float *data, Si7021_measurement_type_t type);
-
-/************************************************************************************************
- * NAME :            int8_t r_both_Si7021(float* humidity, float* temperature)
- *
- * DESCRIPTION :     Initiates a humidity measurement and -as each time a relative humidity measurement
- *                   is made a temperature measurement is also made- it returns both the humidity and
- *                   temperature measurement results.
- *
- * INPUTS :
- *       PARAMETERS:
- *            None
- *       GLOBALS :
- *            None
- * OUTPUTS :
- *       PARAMETERS:
- *            float*                         humidity      pointer to memory location where the
- *                                                         humidity measurement result will be stored
- *            float*                         temperature   pointer to memory location where the
- *                                                         temperature measurement result will be stored
- *       GLOBALS :
- *            None
- *       RETURN :
- *            Type:   int8_t                 Error code:
- *            Values:  0                     OK
- *                    -1                     I2C error
- *
- * NOTES :          The function uses the Hold Master Mode I2C command to request the humidity
- *                  measurement and to read back the result.
- *
- */
-int8_t r_both_Si7021(float *humidity, float *temperature);
 
 /************************************************************************************************
  * NAME :            int8_t set_resolution_Si7021(Si7021_resolution_t resolution)
@@ -292,53 +208,18 @@ int8_t r_heater_current_Si7021(void);
  */
 int8_t enable_heater_Si7021(uint8_t val);
 
-/************************************************************************************************
- * NAME :            int8_t rst_Si7021(void)
- *
- * DESCRIPTION :     Initiates a Si7021 software reset by the appropriate command.
- *
- * INPUTS :
- *       PARAMETERS:
- *            None
- *       GLOBALS :
- *            None
- * OUTPUTS :
- *       PARAMETERS:
- *            None
- *       GLOBALS :
- *            None
- *       RETURN :
- *            Type:   int8_t                 Error code:
- *            Values:  0                     OK
- *                    -1                     I2C error
- *
- * NOTES :
- */
-int8_t rst_Si7021(void);
 
-/************************************************************************************************
- * NAME :            int8_t get_register(Si7021_registers_t reg, uint8_t* rv)
- *
- * DESCRIPTION :     Returns the value of the selected register.
- *
- * INPUTS :
- *       PARAMETERS:
- *            Si7021_registers_t             reg        register to be queried
- *       GLOBALS :
- *            None
- * OUTPUTS :
- *       PARAMETERS:
- *            uint8_t*                       rv         pointer to the mermory location
- *                                                      where the register value will be stored
- *       GLOBALS :
- *            None
- *       RETURN :
- *            Type:   int8_t                 Error code:
- *            Values:  0                     OK
- *                    -1                     I2C error or invalid register parameter
- *
- * NOTES :
- */
-int8_t get_register(Si7021_registers_t reg, uint8_t *rv);
+/* Initiates a Si7021 software reset by the appropriate command */
+bool Si7021_Init(I2C_HandleTypeDef *hi2c);
+
+
+/* Initiates a measurement defined by the 'type' parameter and reads back its result.
+ * It can be either a humidity or a temperature measurement. */
+bool Si7021_Read(float *data, Si7021_measurement_type_t type);
+
+
+/* Initiates a humidity measurement and -as each time a relative humidity measurement is made
+ * a temperature measurement is also made- it returns both the humidity and temperature measurement results. */
+bool Si7021_ReadBoth(float *humidity, float *temperature);
 
 #endif /* SI7021_H_ */

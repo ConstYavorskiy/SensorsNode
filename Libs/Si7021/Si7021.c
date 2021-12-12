@@ -1,17 +1,14 @@
 #include "Si7021.h"
 
+static I2CSensor_HandleTypedef hSi7021;
+static I2C_HandleTypeDef i2cHandle;
+
 static const uint16_t I2C_ADDR = (0x40 << 1);      // Si7021 I2C address
 static const uint8_t HEATER_CURRENT_OFFSET = 3;    // current value in mA for register value 0
 static const uint8_t HEATER_CURRENT_STEP = 6;      // mA/LSB
 
 static uint8_t user_register_1 = 0b00111010;
 static uint8_t heater_control_register = 0b00000000;
-
-static float process_temp_code(uint16_t temp_code);
-static float process_humi_code(uint16_t humi_code);
-static uint16_t convert_to_uint16(uint8_t bytes[]);
-static int8_t w_reg(uint8_t value, Si7021_registers_t reg);
-static int8_t r_reg(Si7021_registers_t reg);
 
 static float process_temp_code(uint16_t temp_code) {
 	return (float) (((175.72 * temp_code) / 65536.0) - 46.85);
@@ -26,10 +23,6 @@ static float process_humi_code(uint16_t humi_code) {
 		return 100;
 	else
 		return (float) value;
-}
-
-static uint16_t convert_to_uint16(uint8_t bytes[]) {
-	return (uint16_t) ((bytes[0] << 8) | bytes[1]);
 }
 
 static int8_t r_reg(Si7021_registers_t reg) {
@@ -67,64 +60,7 @@ static int8_t w_reg(uint8_t value, Si7021_registers_t reg) {
 		return 0;
 }
 
-int8_t r_single_Si7021(float *data, Si7021_measurement_type_t type) {
-	uint8_t cmd;
-	uint8_t buffer[2];
-	uint16_t code;
-
-	if (type == Humidity)
-		cmd = Humi_HM;
-	else if (type == Temperature)
-		cmd = Temp_HM;
-	else
-		return -1;
-
-	if (HAL_OK != HAL_I2C_Master_Transmit(&i2cHandle, I2C_ADDR, &cmd, 1, 10000))
-		return -1;
-
-	if (HAL_OK != HAL_I2C_Master_Receive(&i2cHandle, I2C_ADDR, buffer, 2, 10000))
-		return -1;
-
-	code = convert_to_uint16(buffer);
-
-	if (type == Humidity)
-		*data = process_humi_code(code);
-	else if (type == Temperature)
-		*data = process_temp_code(code);
-
-	return 0;
-}
-
-int8_t r_both_Si7021(float *humidity, float *temperature) {
-	uint8_t cmd = Humi_HM;
-	uint8_t buffer[2];
-	uint16_t code;
-
-	if (HAL_OK != HAL_I2C_Master_Transmit(&i2cHandle, I2C_ADDR, &cmd, 1, 10000))
-		return -1;
-
-	if (HAL_OK != HAL_I2C_Master_Receive(&i2cHandle, I2C_ADDR, buffer, 2, 10000))
-		return -1;
-
-	code = convert_to_uint16(buffer);
-	*humidity = process_humi_code(code);
-
-	/* There is a temperature measurement with each RH measurement */
-	cmd = Temp_AH;
-
-	if (HAL_OK != HAL_I2C_Master_Transmit(&i2cHandle, I2C_ADDR, &cmd, 1, 10000))
-		return -1;
-
-	if (HAL_OK != HAL_I2C_Master_Receive(&i2cHandle, I2C_ADDR, buffer, 2, 10000))
-		return -1;
-
-	code = convert_to_uint16(buffer);
-	*temperature = process_temp_code(code);
-
-	return 0;
-}
-
-int8_t r_firmware_rev_Si7021() {
+int8_t Si7021_firmware_rev() {
 	uint16_t cmd = (R_Firm_rev2 << 8) | R_Firm_rev1;
 	uint8_t data;
 
@@ -240,23 +176,50 @@ int8_t enable_heater_Si7021(uint8_t val) {
 	return rv;
 }
 
-int8_t rst_Si7021() {
-	uint8_t cmd = Si7021_Reset;
+bool Si7021_Init(I2C_HandleTypeDef *hi2c) {
+	uint16_t addr = 0x40;
+	i2cHandle = *hi2c;
 
-	if (HAL_OK != HAL_I2C_Master_Transmit(&i2cHandle, I2C_ADDR, &cmd, 1, 10000))
-		return -1;
-	else
-		return 0;
+	hSi7021.i2c = hi2c;
+	hSi7021.addr = addr;
+	hSi7021.addr_shifted = (addr << 1);
+
+	return I2CSensor_cmd(&hSi7021, Si7021_Reset);
 }
 
-int8_t get_register(Si7021_registers_t reg, uint8_t *rv) {
-	if (r_reg(reg) < 0)
-		return -1;
+bool Si7021_Read(float *data, Si7021_measurement_type_t type) {
+	uint8_t cmd;
+	uint16_t result;
 
-	if (reg == User_Register_1)
-		*rv = user_register_1;
+	if (type == Humidity)
+		cmd = Humi_HM;
+	else if (type == Temperature)
+		cmd = Temp_HM;
 	else
-		*rv = heater_control_register;
+		return false;
 
-	return 0;
+	if (!I2CSensor_read16_MSBLSB(&hSi7021, cmd, &result))
+		return false;
+
+	if (type == Humidity)
+		*data = process_humi_code(result);
+	else if (type == Temperature)
+		*data = process_temp_code(result);
+
+	return true;
+}
+
+bool Si7021_ReadBoth(float *humidity, float *temperature) {
+	uint16_t result;
+	if (!I2CSensor_read16_MSBLSB(&hSi7021, Humi_HM, &result))
+		return false;
+
+	*humidity = process_humi_code(result);
+
+	/* There is a temperature measurement with each RH measurement */
+	if (!I2CSensor_read16_MSBLSB(&hSi7021, Temp_AH, &result))
+		return false;
+
+	*temperature = process_temp_code(result);
+	return true;
 }

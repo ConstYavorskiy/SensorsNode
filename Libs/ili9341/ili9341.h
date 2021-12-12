@@ -2,7 +2,7 @@
 #ifndef __ILI9341_H__
 #define __ILI9341_H__
 
-#include "stm32f1xx_hal.h"
+#include "main.h"
 #include "fonts.h"
 #include <stdbool.h>
 

@@ -166,7 +166,7 @@ bool Si1132_about(uint8_t *part_id, uint8_t *rev_id, uint8_t *seq_id)
  */
 uint16_t Si1132_readUV() {
 	uint16_t value;
-	I2CSensor_read16(&hSi1132, SI1132_AUX_DATA_REG, &value);
+	I2CSensor_read16_LSBMSB(&hSi1132, SI1132_AUX_DATA_REG, &value);
 /*
 	AUX_DATA will contain a 16-bit value representing 100 times the sunlight UV Index. Host
 	software must divide the results from AUX_DATA by 100.
@@ -181,7 +181,7 @@ uint16_t Si1132_readUV() {
  */
 uint16_t Si1132_readIR() {
 	uint16_t value;
-	I2CSensor_read16(&hSi1132, SI1132_IR_DATA_REG, &value);
+	I2CSensor_read16_LSBMSB(&hSi1132, SI1132_IR_DATA_REG, &value);
 	value = ((value - 250) / 2.44) * 14.5;
 	return value;
 }
@@ -192,7 +192,7 @@ uint16_t Si1132_readIR() {
  */
 uint16_t Si1132_readVisible() {
 	uint16_t value;
-	I2CSensor_read16(&hSi1132, SI1132_VISIBLE_DATA_REG, &value);
+	I2CSensor_read16_LSBMSB(&hSi1132, SI1132_VISIBLE_DATA_REG, &value);
 	value = ((value - 256) / 0.282) * 14.5;
 	return value;
 }
@@ -203,8 +203,8 @@ bool Si1132_read(uint32_t *ir, uint32_t *vis, uint32_t *uv)
 	uint8_t rx_buff[4];
 	float f_ir = 0, f_vis = 0, f_uv = 0;
 	I2CSensor_read(&hSi1132, SI1132_VISIBLE_DATA_REG, rx_buff, 4);
-	f_vis = (float)to_int16(rx_buff);
-	f_ir = (float)to_int16(rx_buff + 2);
+	f_vis = (float)toU16_LSBMSB(rx_buff);
+	f_ir = (float)toU16_LSBMSB(rx_buff + 2);
 
 	f_uv = Si1132_readUV();
 
