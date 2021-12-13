@@ -48,6 +48,13 @@
 
 /* USER CODE BEGIN PV */
 
+CAN_TxHeaderTypeDef TxHeader;
+CAN_RxHeaderTypeDef RxHeader;
+uint8_t TxData[8] = {0,};
+uint8_t RxData[8] = {0,};
+uint32_t TxMailbox = 0;
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -101,24 +108,57 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  TxHeader.StdId = 0x0100;
+  TxHeader.ExtId = 0;
+  TxHeader.RTR = CAN_RTR_DATA; // CAN_RTR_REMOTE
+  TxHeader.IDE = CAN_ID_STD;   // CAN_ID_EXT
+  TxHeader.DLC = 8;
+  TxHeader.TransmitGlobalTime = 0;
+
+  for(uint8_t i = 0; i < 8; i++)
+  {
+      TxData[i] = (i + 10);
+  }
+
+  HAL_CAN_Start(&hcan1);
+  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_ERROR | CAN_IT_BUSOFF | CAN_IT_LAST_ERROR_CODE);
+
+  float* dTX = (float*)TxData;
+
   while (1)	{
 
 	counter++;
 	uint8_t state = counter % 3;
 
-	HAL_GPIO_WritePin(LED_Port, LED_0, state == 0);
+	/*HAL_GPIO_WritePin(LED_Port, LED_0, state == 0);
 	HAL_GPIO_WritePin(LED_Port, LED_1, state == 1);
 	HAL_GPIO_WritePin(LED_Port, LED_2, state == 2);
-
+*/
 	HAL_Delay(500);
 
 	tmp = TMP75_Read_Temp();
 
 	if (Si7021_ReadBoth(&si_humidity, &si_temperature) == 0)
 	{
-
-
 	}
+
+
+	dTX[0] = tmp;
+	TxHeader.StdId = 0x0101;
+    while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0);
+    HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
+
+    dTX[0] = si_temperature;
+	TxHeader.StdId = 0x0102;
+    while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0);
+    HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
+
+    dTX[0] = si_humidity;
+	TxHeader.StdId = 0x0103;
+    while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0);
+    HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
+
 
 	//printf("c = %d\n", counter);
 	//printf("t = %f\n", tmp);
@@ -180,6 +220,27 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+    if(HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
+    {
+        HAL_GPIO_TogglePin(LED_Port, LED_2);
+        float* dRX = (float*)RxData;
+        float d = dRX[0];
+        switch (RxHeader.StdId) {
+
+
+
+        }
+
+    }
+}
+
+void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan)
+{
+	HAL_GPIO_TogglePin(LED_Port, LED_0);
+}
 
 /* USER CODE END 4 */
 
