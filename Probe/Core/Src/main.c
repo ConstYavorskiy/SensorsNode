@@ -27,6 +27,7 @@
 /* USER CODE BEGIN Includes */
 #include "TMP75/TMP75.h"
 #include "Si7021/Si7021.h"
+#include "MS5837/MS5837.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -66,7 +67,9 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 static uint8_t counter = 0;
-static float tmp = 0.0, si_humidity = 0.0, si_temperature = 0.0;
+static float tmp = 0.0, si_humidity = 0.0, si_temperature = 0.0, ms_temperature = 0.0, ms_pressure = 0.0;
+
+static MS5837_t dataMS5837;
 /* USER CODE END 0 */
 
 /**
@@ -103,6 +106,7 @@ int main(void)
 
   TMP75_Init(&hi2c1, 0b1001000);
   Si7021_Init(&hi2c1);
+  MS5837_Init(&hi2c1, &dataMS5837);
 
   /* USER CODE END 2 */
 
@@ -135,7 +139,8 @@ int main(void)
 	HAL_GPIO_WritePin(LED_Port, LED_1, state == 1);
 	HAL_GPIO_WritePin(LED_Port, LED_2, state == 2);
 */
-	HAL_Delay(500);
+
+	HAL_Delay(50);
 
 	tmp = TMP75_Read_Temp();
 
@@ -143,6 +148,12 @@ int main(void)
 	{
 	}
 
+	if (MS5837_30BA_Calc(&dataMS5837))
+	{
+		ms_temperature = dataMS5837.temperature;
+		ms_pressure = MS5837_Depth(&dataMS5837);
+		ms_pressure = MS5837_Altitude(&dataMS5837);
+	}
 
 	dTX[0] = tmp;
 	TxHeader.StdId = 0x0101;
@@ -166,8 +177,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
-
   }
   /* USER CODE END 3 */
 }
