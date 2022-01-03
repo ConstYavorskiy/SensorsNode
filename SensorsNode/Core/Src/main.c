@@ -23,7 +23,7 @@
 #include "rtc.h"
 #include "spi.h"
 #include "tim.h"
-#include "usb_device.h"
+//#include "usb_device.h"
 #include "gpio.h"
 
 #include "relays.h"
@@ -40,16 +40,31 @@
 #include "Si7021/Si7021.h"
 #include "Si1132/Si1132.h"
 
-#include "usbd_cdc_if.h"
+//#include "usbd_cdc_if.h"
+
+typedef struct
+{
+    uint16_t Id;
+    uint16_t Sender;
+    float Value;
+} CAN_Message_TypeDef;
+
+#include "fifofast/fifofast.h"
+_fff_declare(CAN_Message_TypeDef, CAN_RxBuffer, 16);
+_fff_init(CAN_RxBuffer);
 
 #include <stdio.h>
 #include <string.h>
 
-
-
 static BMP280_HandleTypedef bmp280;
 static TSC_ENVIRONMENT TSC_Env;
 static TSC_STATE TSC_State;
+
+static CAN_TxHeaderTypeDef TxHeader;
+static CAN_RxHeaderTypeDef RxHeader;
+static uint8_t TxData[8] = {0,};
+static uint8_t RxData[8] = {0,};
+static uint32_t TxMailbox = 0;
 
 static uint16_t counter = 0, fps = 0, iters = 0;
 static bool initialized = false, has_BME280 = false, has_Si1132 = false, has_Si7021 = false, has_TSC = true, has_AT45db = false, has_USB_Connection = false;
@@ -111,6 +126,7 @@ int main(void)
   SystemClock_Config();
   MX_RTC_Init();
   MX_GPIO_Init();
+  MX_CAN_Init();
 
   //MX_TIM2_Init();
   //MX_I2C1_Init();
@@ -124,6 +140,24 @@ int main(void)
     HAL_GPIO_WritePin(USB_Connect_Port, USB_Connect_Pin, GPIO_PIN_SET);
   }
 
+
+  TxHeader.StdId = 0x0100;
+  TxHeader.ExtId = 0;
+  TxHeader.RTR = CAN_RTR_DATA; // CAN_RTR_REMOTE
+  TxHeader.IDE = CAN_ID_STD;   // CAN_ID_EXT
+  TxHeader.DLC = 8;
+  TxHeader.TransmitGlobalTime = 0;
+
+  for(uint8_t i = 0; i < 8; i++)
+  {
+      TxData[i] = (i + 10);
+  }
+
+  HAL_CAN_Start(&hcan);
+  HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO1_MSG_PENDING | CAN_IT_ERROR | CAN_IT_BUSOFF | CAN_IT_LAST_ERROR_CODE);
+  float* dTX = (float*)TxData;
+
+
   RTC_TimeTypeDef sTime = { 0 };
   RTC_DateTypeDef sDate = { 0 };
 
@@ -134,6 +168,8 @@ int main(void)
 
   char buffer_tx[64];
   uint8_t buffer_tx_len = 0;
+
+
 
   InitializeUI();
 
@@ -226,6 +262,40 @@ int main(void)
 
     if (success) {
 
+    	while (!_fff_is_empty(CAN_RxBuffer)) {
+    		CAN_Message_TypeDef message = _fff_read_lite(CAN_RxBuffer);
+            switch (message.Id) {
+            case 0x0101:
+    			ILI9341_WriteNumSigns(58, 93, (int)message.Value, 2, Font_11x18, MAGENTA, BLACK);
+            	break;
+
+            case 0x0102:
+    			ILI9341_WriteNumSigns(120, 93, (int)message.Value, 2, Font_11x18, MAGENTA, BLACK);
+            	break;
+
+            case 0x0103:
+    			ILI9341_WriteNumSigns(185, 93, (int)message.Value, 2, Font_11x18, MAGENTA, BLACK);
+            	break;
+            }
+    	}
+
+
+/*
+    	dTX[0] = bs_temperature;
+    	TxHeader.StdId = 0x0101;
+        while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
+        HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
+
+        dTX[0] = bs_humidity;
+    	TxHeader.StdId = 0x0102;
+        while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
+        HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
+
+        dTX[0] = bs_pressure;
+    	TxHeader.StdId = 0x0103;
+        while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
+        HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
+*/
 
 /*
 			buffer_tx_len = sprintf(buffer_tx, "%02d:%02d:%02d %02d.%02d T:%02d H:%02d P:%06d \r\n",
@@ -317,6 +387,26 @@ void EXTI2_IRQHandler() {
 	}
 }
 */
+
+void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+    if(HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO1, &RxHeader, RxData) == HAL_OK)
+    {
+        HAL_GPIO_TogglePin(LED_Port, LED_2);
+
+        CAN_Message_TypeDef message;
+        message.Id = RxHeader.StdId;
+        message.Value = ((float*)RxData)[0];
+        _fff_write(CAN_RxBuffer, message);
+    }
+}
+
+void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan)
+{
+	HAL_GPIO_TogglePin(LED_Port, LED_0);
+}
+
+
 
 void Error_Handler(void)
 {
