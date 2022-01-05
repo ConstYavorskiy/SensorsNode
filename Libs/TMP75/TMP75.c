@@ -10,7 +10,7 @@
 
 static I2CSensor_HandleTypedef hTMP75;
 
-void TMP75_Init(I2C_HandleTypeDef *hi2c, uint16_t addr) {
+bool TMP75_Init(I2C_HandleTypeDef *hi2c, uint16_t addr) {
 
 	hTMP75.i2c = hi2c;
 	hTMP75.addr = addr;
@@ -20,7 +20,7 @@ void TMP75_Init(I2C_HandleTypeDef *hi2c, uint16_t addr) {
 	    0   00  00   0    0   0  */
 
 	uint8_t cfg = 0b01100000;
-	I2CSensor_write8(&hTMP75, TMP75_Configuration, cfg);
+	return I2CSensor_write8(&hTMP75, TMP75_Configuration, cfg);
 }
 
 void TMP75_OneShot_Temp(void) {
@@ -32,6 +32,6 @@ void TMP75_OneShot_Temp(void) {
 float TMP75_Read_Temp() {
 	uint8_t buffer[2];
 	I2CSensor_read(&hTMP75, TMP75_Temperature, buffer, 2);
-	uint16_t temp = (((uint16_t)buffer[0] << 8) | buffer[1]) >> 4;
+	int16_t temp = (int16_t)(((uint16_t)buffer[0] << 8) | buffer[1]) >> 4;
 	return (float)temp * TMP75_TEMP_Resolution_12bit;
 }

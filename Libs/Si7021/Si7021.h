@@ -2,7 +2,7 @@
 #define SI7021_H_
 
 #include "main.h"
-#include "I2CSensor/I2CSensor.h"
+#include "Sensors/I2CSensor.h"
 
 #define RES0 0
 #define RES1 7

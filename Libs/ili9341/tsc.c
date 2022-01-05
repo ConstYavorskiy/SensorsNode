@@ -64,27 +64,26 @@ bool TSC_init(I2C_HandleTypeDef *hi2c) {
 	return true;
 }
 
-//const float VBatScale = 1000 / 4096; // 100 * 2.5 * 4 / 4096;
+const float VBatScale = 2.5 * 4 / 4096;
 
-void TSC_GetEnvironment(TSC_ENVIRONMENT* env)
+void TSC_GetEnvironment(TSC_ENVIRONMENT_TypeDef* env)
 {
 	uint16_t t0 = TSC_Read(TSC_CMD_TEMP0);
 	// uint16_t t1 = TSC_Read(TSC_CMD_TEMP1);
 
-	env->Temp0 = 3 * t0 / 100;
+	env->Temp0 = 3.0 * t0 / 100;
 	//env->Temp1 = 2.573 * (t1 - t0) - 273;
-	env->Vin = (uint32_t)TSC_Read(TSC_CMD_VBAT1) * 1000 / 4096;
-	env->Vbat = (uint32_t)TSC_Read(TSC_CMD_VBAT2) * 1000 / 4096;
-
+	env->Vin = (float)TSC_Read(TSC_CMD_VBAT1) * VBatScale;
+	env->Vbat = (float)TSC_Read(TSC_CMD_VBAT2) * VBatScale;
 }
 
-void TSC_GetTouchState(TSC_STATE* state)
+void TSC_GetTouchState(TSC_STATE_TypeDef* state)
 {
 	uint16_t x_res = 240, y_res = 240,  x_min = 330, x_max = 3800, y_min = 350, y_max = 3900;
 	uint32_t x, y, z;
 
 	z = TSC_Read(TSC_CMD_Z1POS);
-	if (z < 10)
+	if (z < 50)
 	{
 		return;
 	}
@@ -96,6 +95,7 @@ void TSC_GetTouchState(TSC_STATE* state)
 	if (y > y_max) y = y_max;
 	if (y < y_min) y = y_min;
 
+	state->TouchDetected = true;
 	state->X = (x - x_min) * x_res / (x_max - x_min);
 	state->Y = (y - y_min) * y_res / (y_max - y_min);
 }

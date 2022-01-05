@@ -79,8 +79,9 @@ void ILI9341_Unselect();
 
 void ILI9341_Init(void);
 void ILI9341_DrawPixel(uint16_t x, uint16_t y, uint16_t color);
-void ILI9341_WriteNum(uint16_t x, uint16_t y, int32_t nummber, FontDef font, uint16_t color, uint16_t bgcolor);
-void ILI9341_WriteNumSigns(uint16_t x, uint16_t y, int32_t nummber, uint8_t count, FontDef font, uint16_t color, uint16_t bgcolor);
+void ILI9341_WriteInt(uint16_t x, uint16_t y, int32_t nummber, uint8_t placeholders, FontDef font, uint16_t color, uint16_t bgcolor);
+void ILI9341_WriteUInt(uint16_t x, uint16_t y, uint16_t nummber, uint8_t placeholders, FontDef font, uint16_t color, uint16_t bgcolor);
+void ILI9341_WriteFloat(uint16_t x, uint16_t y, float nummber, uint8_t decimals, uint8_t placeholders, FontDef font, uint16_t color, uint16_t bgcolor);
 void ILI9341_WriteString(uint16_t x, uint16_t y, const char *str, FontDef font, uint16_t color, uint16_t bgcolor);
 void ILI9341_FillRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
 void ILI9341_FillScreen(uint16_t color);

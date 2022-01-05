@@ -258,70 +258,98 @@ static void ILI9341_WriteChar(uint16_t x, uint16_t y, char ch, FontDef font, uin
 }
 
 #define  ARRAY_LEN 16
-void ILI9341_WriteNum(uint16_t x, uint16_t y, int32_t nummber, FontDef font, uint16_t color, uint16_t bgcolor) {
-	int16_t Num_Bit = 0, Str_Bit = 0;
-	uint8_t Str_Array[ARRAY_LEN] = { 0 }, Num_Array[ARRAY_LEN] = { 0 };
-	uint8_t *pStr = Str_Array;
 
-	_Bool is_negative = nummber < 0;
-	if (is_negative) {
+void ILI9341_WriteInt(uint16_t x, uint16_t y, int32_t nummber, uint8_t placeholders, FontDef font, uint16_t color, uint16_t bgcolor) {
+	bool isNegative = nummber < 0;
+	if (isNegative) {
 		nummber *= -1;
 	}
+
+	int16_t strIndex = ARRAY_LEN - 2;
+	uint8_t strBuffer[ARRAY_LEN] = { 0 };
+	uint8_t *pStr;
+
 	//Converts a number to a string
 	do {
-		Num_Array[Num_Bit] = nummber % 10 + '0';
-		Num_Bit++;
+		strBuffer[strIndex--] = nummber % 10 + '0';
 		nummber /= 10;
 	} while (nummber);
 
-	if (is_negative) {
-		Num_Array[Num_Bit] = '-';
-		Num_Bit++;
+	if (isNegative) {
+		strBuffer[strIndex--] = '-';
 	}
 
-	//The string is inverted
-	while (Num_Bit > 0) {
-		Str_Array[Str_Bit] = Num_Array[Num_Bit - 1];
-		Str_Bit++;
-		Num_Bit--;
+	while ((ARRAY_LEN - strIndex - 2) < placeholders) {
+		strBuffer[strIndex--] = ' ';
 	}
 
-	ILI9341_WriteString(x, y, (const char*) pStr, font, color, bgcolor);
+	pStr = &(strBuffer[strIndex + 1]);
+	ILI9341_WriteString(x, y, (const char*)pStr, font, color, bgcolor);
 }
 
-void ILI9341_WriteNumSigns(uint16_t x, uint16_t y, int32_t nummber, uint8_t count, FontDef font, uint16_t color, uint16_t bgcolor) {
-	int16_t Num_Bit = 0, Str_Bit = 0;
-	uint8_t Str_Array[ARRAY_LEN] = { 0 }, Num_Array[ARRAY_LEN] = { 0 };
-	uint8_t *pStr = Str_Array;
+void ILI9341_WriteUInt(uint16_t x, uint16_t y, uint16_t nummber, uint8_t placeholders, FontDef font, uint16_t color, uint16_t bgcolor) {
+	int16_t strIndex = ARRAY_LEN - 2;
+	uint8_t strBuffer[ARRAY_LEN] = { 0 };
+	uint8_t *pStr;
 
-	_Bool is_negative = nummber < 0;
-	if (is_negative) {
-		nummber *= -1;
-	}
 	//Converts a number to a string
 	do {
-		Num_Array[Num_Bit] = nummber % 10 + '0';
-		Num_Bit++;
+		strBuffer[strIndex--] = nummber % 10 + '0';
 		nummber /= 10;
 	} while (nummber);
 
-	if (is_negative) {
-		Num_Array[Num_Bit] = '-';
-		Num_Bit++;
+
+	while ((ARRAY_LEN - strIndex - 2) < placeholders) {
+		strBuffer[strIndex--] = '0';
 	}
 
-	while (Num_Bit < count) {
-		Num_Array[Num_Bit] = '0';
-		Num_Bit++;
+	pStr = &(strBuffer[strIndex + 1]);
+	ILI9341_WriteString(x, y, (const char*)pStr, font, color, bgcolor);
+}
+
+void ILI9341_WriteFloat(uint16_t x, uint16_t y, float nummber, uint8_t decimals, uint8_t placeholders, FontDef font, uint16_t color, uint16_t bgcolor) {
+	// sprintf(Str_Array, "%f", nummber);
+
+	bool isNegative = nummber < 0;
+	if (isNegative) {
+		nummber *= -1;
 	}
 
-	//The string is inverted
-	while (Num_Bit > 0) {
-		Str_Array[Str_Bit] = Num_Array[Num_Bit - 1];
-		Str_Bit++;
-		Num_Bit--;
+	int32_t intNum = (int32_t)nummber;
+	float decNum = nummber;
+	uint8_t strIndex = ARRAY_LEN - 2;
+	uint8_t strBuffer[ARRAY_LEN] = { 0 };
+	uint8_t *pStr;
+
+	//Converts a number to a string
+	if (decimals > 0) {
+		strIndex -= decimals + 1;
+		uint8_t dIndex = strIndex + 1;
+		int32_t dValue = intNum;
+		strBuffer[dIndex++] = '.';
+		for (uint8_t i = 0; i < decimals; i++)
+		{
+			decNum -= dValue;
+			decNum *= 10;
+			dValue = (uint8_t)decNum;
+			strBuffer[dIndex++] = dValue + '0';
+		}
 	}
 
+	do {
+		strBuffer[strIndex--] = intNum % 10 + '0';
+		intNum /= 10;
+	} while (intNum);
+
+	if (isNegative) {
+		strBuffer[strIndex--] = '-';
+	}
+
+	while ((ARRAY_LEN - strIndex - 2) < placeholders) {
+		strBuffer[strIndex--] = ' ';
+	}
+
+	pStr = &(strBuffer[strIndex + 1]);
 	ILI9341_WriteString(x, y, (const char*) pStr, font, color, bgcolor);
 }
 

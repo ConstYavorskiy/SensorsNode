@@ -22,7 +22,8 @@ void Relays_SetState(uint8_t relay, bool state)
 #define Relays_Pin Relay2_Pin // |Relay1_Pin
 void Relays_Update(RTC_TimeTypeDef *sTime)
 {
-	if (sTime->Hours > 7 && sTime->Hours < 23)
+	if (sTime->Hours >= 8 && sTime->Hours <= 11
+	  || sTime->Hours >= 16 && sTime->Hours <= 19)
 	{
 		HAL_GPIO_WritePin(Relay_Port, Relays_Pin, 1);
 		return;

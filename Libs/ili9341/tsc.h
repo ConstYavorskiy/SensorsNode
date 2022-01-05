@@ -2,7 +2,7 @@
 #ifndef __TSC_H
 #define __TSC_H
 
-#include "I2CSensor/I2CSensor.h"
+#include "Sensors/I2CSensor.h"
 
 // Touch Screen Information structure
 typedef struct
@@ -11,15 +11,15 @@ typedef struct
 	uint16_t X;
 	uint16_t Y;
 	// uint16_t Z;
-} TSC_STATE;
+} TSC_STATE_TypeDef;
 
 typedef struct
 {
-	uint16_t Temp0;
-	uint16_t Temp1;
-	uint16_t Vin;
-	uint16_t Vbat;
-} TSC_ENVIRONMENT;
+	float Temp0;
+	float Temp1;
+	float Vin;
+	float Vbat;
+} TSC_ENVIRONMENT_TypeDef;
 
 // IO_Expander Error codes
 typedef enum
@@ -64,8 +64,8 @@ typedef enum
 bool TSC_init(I2C_HandleTypeDef *hi2c);
 
 // Touch Screen controller functions
-void TSC_GetTouchState(TSC_STATE* state);
-void TSC_GetEnvironment(TSC_ENVIRONMENT* env);
+void TSC_GetTouchState(TSC_STATE_TypeDef* state);
+void TSC_GetEnvironment(TSC_ENVIRONMENT_TypeDef* env);
 
 
 /**

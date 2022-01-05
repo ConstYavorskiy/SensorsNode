@@ -1,5 +1,5 @@
-#ifndef I2CSENSOR_H_
-#define I2CSENSOR_H_
+#ifndef _I2C_SENSOR_H_
+#define _I2C_SENSOR_H_
 
 #include "main.h"
 #include <stdbool.h>

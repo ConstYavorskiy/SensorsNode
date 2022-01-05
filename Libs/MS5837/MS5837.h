@@ -2,7 +2,7 @@
 #define MS5837_H_
 
 #include "main.h"
-#include "I2CSensor/I2CSensor.h"
+#include "Sensors/I2CSensor.h"
 
 //Definitions:
 #define MS5837_ADDR               0x76
@@ -20,7 +20,7 @@
 
 // Default seawater    - 1029  kg/m3
 // Default freshwater  - 998.2 kg/m3 at 20°C
-#define FluidDensity 999.2;
+#define FluidDensity 998.2;
 
 
 #define MS5837_Delay()  HAL_Delay(20);

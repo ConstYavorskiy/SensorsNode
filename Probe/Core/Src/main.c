@@ -21,6 +21,7 @@
 #include "main.h"
 #include "can.h"
 #include "i2c.h"
+// #include "spi.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -28,6 +29,7 @@
 #include "TMP75/TMP75.h"
 #include "Si7021/Si7021.h"
 #include "MS5837/MS5837.h"
+#include "Sensors/CANSensor.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,7 +56,7 @@ static CAN_RxHeaderTypeDef RxHeader;
 static uint8_t TxData[8] = {0,};
 static uint8_t RxData[8] = {0,};
 static uint32_t TxMailbox = 0;
-
+static float* dTX = (float*)TxData;
 
 /* USER CODE END PV */
 
@@ -66,10 +68,20 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-static uint8_t counter = 0;
-static float tmp = 0.0, si_humidity = 0.0, si_temperature = 0.0, ms_temperature = 0.0, ms_pressure = 0.0;
+static bool has_TMP75 = false, has_Si1132 = false, has_Si7021 = false, has_MS5837 = false;
+static float tmp = 0.0, si_humidity = 0.0, si_temperature = 0.0, ms_temperature = 0.0, ms_pressure = 0.0, ms_depth = 0.0;
 
 static MS5837_t dataMS5837;
+
+static void CAN_SendSensorData(uint16_t sid, float value)
+{
+  dTX[0] = value;
+  TxHeader.StdId = sid;
+  while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0);
+  HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
+}
+
+
 /* USER CODE END 0 */
 
 /**
@@ -102,11 +114,12 @@ int main(void)
   MX_GPIO_Init();
   MX_CAN1_Init();
   MX_I2C1_Init();
+  // MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
-  TMP75_Init(&hi2c1, 0b1001000);
-  Si7021_Init(&hi2c1);
-  MS5837_Init(&hi2c1, &dataMS5837);
+  has_TMP75 = TMP75_Init(&hi2c1, 0b1001000);
+  has_Si7021 = Si7021_Init(&hi2c1);
+  has_MS5837 = MS5837_Init(&hi2c1, &dataMS5837);
 
   /* USER CODE END 2 */
 
@@ -120,61 +133,42 @@ int main(void)
   TxHeader.DLC = 8;
   TxHeader.TransmitGlobalTime = 0;
 
-  for(uint8_t i = 0; i < 8; i++)
-  {
-      TxData[i] = (i + 10);
-  }
-
   HAL_CAN_Start(&hcan1);
   HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_ERROR | CAN_IT_BUSOFF | CAN_IT_LAST_ERROR_CODE);
 
-  float* dTX = (float*)TxData;
-
   while (1)	{
+	HAL_GPIO_WritePin(LED_Port, LED_0, 0);
+	HAL_Delay(1000);
+	HAL_GPIO_WritePin(LED_Port, LED_0, 1);
 
-	counter++;
-	uint8_t state = counter % 3;
-
-	/*HAL_GPIO_WritePin(LED_Port, LED_0, state == 0);
-	HAL_GPIO_WritePin(LED_Port, LED_1, state == 1);
-	HAL_GPIO_WritePin(LED_Port, LED_2, state == 2);
-*/
-
-	HAL_Delay(50);
-
-	tmp = TMP75_Read_Temp();
-
-	if (Si7021_ReadBoth(&si_humidity, &si_temperature) == 0)
-	{
+	if (has_TMP75) {
+	  tmp = TMP75_Read_Temp();
+	  CAN_SendSensorData(CAN_TMP75, tmp);
 	}
 
-	if (MS5837_30BA_Calc(&dataMS5837))
-	{
+	if (has_Si7021) {
+	  if (Si7021_ReadBoth(&si_humidity, &si_temperature))
+	  {
+		CAN_SendSensorData(CAN_Si7021_Temp, si_temperature);
+		CAN_SendSensorData(CAN_Si7021_Humi, si_humidity);
+	  }
+	}
+
+	if (has_MS5837) {
+	  if (MS5837_30BA_Calc(&dataMS5837))
+	  {
 		ms_temperature = dataMS5837.temperature;
-		ms_pressure = MS5837_Depth(&dataMS5837);
-		ms_pressure = MS5837_Altitude(&dataMS5837);
+		ms_pressure = dataMS5837.pressure;
+		ms_depth = MS5837_Depth(&dataMS5837);
+		//ms_pressure = MS5837_Altitude(&dataMS5837);
+
+		CAN_SendSensorData(CAN_MS5837_Temp, ms_temperature);
+		CAN_SendSensorData(CAN_MS5837_Press, ms_pressure);
+		CAN_SendSensorData(CAN_MS5837_Depth, ms_depth);
+	  }
 	}
 
-	dTX[0] = tmp;
-	TxHeader.StdId = 0x0101;
-    while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0);
-    HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
-
-    dTX[0] = si_temperature;
-	TxHeader.StdId = 0x0102;
-    while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0);
-    HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
-
-    dTX[0] = si_humidity;
-	TxHeader.StdId = 0x0103;
-    while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0);
-    HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
-
-
-	//printf("c = %d\n", counter);
-	//printf("t = %f\n", tmp);
-	//printf("h = %f\n", si_humidity);
-    /* USER CODE END WHILE */
+	/* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }
@@ -205,10 +199,10 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM = 1;
-  RCC_OscInitStruct.PLL.PLLN = 10;
+  RCC_OscInitStruct.PLL.PLLN = 8;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
-  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
+  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV8;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -222,7 +216,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
   {
     Error_Handler();
   }
@@ -234,21 +228,15 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
     if(HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
     {
-        HAL_GPIO_TogglePin(LED_Port, LED_2);
-        float* dRX = (float*)RxData;
-        float d = dRX[0];
-        switch (RxHeader.StdId) {
-
-
-
-        }
-
+        HAL_GPIO_TogglePin(LED_Port, LED_1);
     }
 }
 
 void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan)
 {
-	HAL_GPIO_TogglePin(LED_Port, LED_0);
+	HAL_GPIO_WritePin(LED_Port, LED_2, 1);
+	HAL_Delay(1);
+	HAL_GPIO_WritePin(LED_Port, LED_2, 0);
 }
 
 /* USER CODE END 4 */

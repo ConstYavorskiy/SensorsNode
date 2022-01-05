@@ -7,7 +7,7 @@ uint16_t toU16_LSBMSB(uint8_t *buff) {
 }
 
 uint16_t toU16_MSBLSB(uint8_t *buff) {
-	return (uint16_t) (((uint16_t)buff[0] << 8) | buff[1]);
+	return (uint16_t)(((uint16_t)buff[0] << 8) | buff[1]);
 }
 
 

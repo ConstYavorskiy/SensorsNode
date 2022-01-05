@@ -84,6 +84,7 @@ bool MS5837_Init(I2C_HandleTypeDef *hi2c, MS5837_t *MS5837){
 
 	uint8_t crcRead = MS5837->val.C[0] >> 12;
 	uint8_t crcCalculated = crc4(MS5837->val.C);
+	MS5837_Delay();
 	return crcCalculated == crcRead;
 }
 
@@ -119,7 +120,7 @@ static bool MS5837_ReadADC(MS5837_t *MS5837){
 }
 
 bool MS5837_30BA_Calc(MS5837_t *MS5837){
-	int32_t dT, OFFi, Ti,SENSi = 0;
+	int32_t dT, OFFi, Ti, SENSi = 0;
 	int64_t SENS, OFF, OFF2, SENS2 = 0;
 
 	if (!MS5837_ReadADC(MS5837))
@@ -199,7 +200,7 @@ bool MS5837_02BA_Calc(MS5837_t *MS5837){
 }
 
 float MS5837_Depth(MS5837_t *MS5837) {
-	return ((MS5837->pressure*100)-101300)/(MS5837->fluidDensity*9.80665);
+	return ((MS5837->pressure)-1003) * 10000 /(MS5837->fluidDensity*9.80665);
 }
 
 float MS5837_Altitude(MS5837_t *MS5837) {

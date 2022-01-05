@@ -2,7 +2,7 @@
 #define SI1132_H_
 
 #include "main.h"
-#include "I2CSensor/I2CSensor.h"
+#include "Sensors/I2CSensor.h"
 #include <stdint.h>
 #include <stdbool.h>
 
