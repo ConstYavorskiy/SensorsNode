@@ -68,6 +68,7 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static uint16_t DeviceID = 0;
 static bool has_TMP75 = false, has_Si1132 = false, has_Si7021 = false, has_MS5837 = false;
 static float tmp = 0.0, si_humidity = 0.0, si_temperature = 0.0, ms_temperature = 0.0, ms_pressure = 0.0, ms_depth = 0.0;
 
@@ -90,41 +91,23 @@ static void CAN_SendSensorData(uint16_t sid, float value)
   */
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
-
-  /* USER CODE END 1 */
-
-  /* MCU Configuration--------------------------------------------------------*/
-
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
-
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
-
-  /* Configure the system clock */
   SystemClock_Config();
-
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_CAN1_Init();
   MX_I2C1_Init();
   // MX_SPI1_Init();
-  /* USER CODE BEGIN 2 */
+
+  DeviceID = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6) << 1 | HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_7);
+  DeviceID <<= 8;
+
+  MX_GPIO_PowerSave_Enter();
 
   has_TMP75 = TMP75_Init(&hi2c1, 0b1001000);
   has_Si7021 = Si7021_Init(&hi2c1);
   has_MS5837 = MS5837_Init(&hi2c1, &dataMS5837);
-
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
 
   TxHeader.StdId = 0x0100;
   TxHeader.ExtId = 0;
@@ -143,14 +126,14 @@ int main(void)
 
 	if (has_TMP75) {
 	  tmp = TMP75_Read_Temp();
-	  CAN_SendSensorData(CAN_TMP75, tmp);
+	  CAN_SendSensorData(DeviceID|CAN_Temp, tmp);
 	}
 
 	if (has_Si7021) {
 	  if (Si7021_ReadBoth(&si_humidity, &si_temperature))
 	  {
-		CAN_SendSensorData(CAN_Si7021_Temp, si_temperature);
-		CAN_SendSensorData(CAN_Si7021_Humi, si_humidity);
+		CAN_SendSensorData(DeviceID|CAN_Si7021_Temp, si_temperature);
+		CAN_SendSensorData(DeviceID|CAN_Si7021_Humi, si_humidity);
 	  }
 	}
 
@@ -162,17 +145,12 @@ int main(void)
 		ms_depth = MS5837_Depth(&dataMS5837);
 		//ms_pressure = MS5837_Altitude(&dataMS5837);
 
-		CAN_SendSensorData(CAN_MS5837_Temp, ms_temperature);
-		CAN_SendSensorData(CAN_MS5837_Press, ms_pressure);
-		CAN_SendSensorData(CAN_MS5837_Depth, ms_depth);
+		CAN_SendSensorData(DeviceID|CAN_MS5837_Temp, ms_temperature);
+		CAN_SendSensorData(DeviceID|CAN_MS5837_Press, ms_pressure);
+		CAN_SendSensorData(DeviceID|CAN_MS5837_Depth, ms_depth);
 	  }
 	}
-
-	/* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
   }
-  /* USER CODE END 3 */
 }
 
 /**
@@ -272,4 +250,3 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-

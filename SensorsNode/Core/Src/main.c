@@ -56,6 +56,7 @@ static RTC_DateTypeDef sDate = { 0 };
 static BMP280_HandleTypedef bmp280;
 static TSC_ENVIRONMENT_TypeDef TSC_Env;
 static TSC_STATE_TypeDef TSC_State;
+static Telemetry_TypeDef Telemetry;
 
 static CAN_TxHeaderTypeDef TxHeader;
 static CAN_RxHeaderTypeDef RxHeader;
@@ -64,11 +65,17 @@ static uint8_t RxData[8] = {0,};
 float* dTX = (float*)TxData;
 float* dRX = (float*)RxData;
 
+#define FlashBuffSize 528
+static uint8_t RxFlashBuff[FlashBuffSize] = {0,};
+static uint8_t TxFlashBuff[FlashBuffSize] = {0,};
+const uint16_t time_mod = 6, time_scale = 60/time_mod;
+uint16_t telemetry_pageNumber = 0, telemetry_size = 0, telemetry_time = 0, telemetry_minutes = 0, telemetry_pre_time = 0xFF;
+
 static volatile bool initialized = false, success = false;
-static bool has_BME280 = false, has_Si1132 = false, has_Si7021 = false, has_TSC = true, has_AT45db = false, has_USB_Connection = false;
+static bool has_BME280 = false, has_Si1132 = false, has_TSC = true, has_AT45db = false, has_USB_Connection = false;
 static uint16_t counter = 0, fps = 0, iters = 0;
-static uint16_t posy_rtc = 3, posy_tsc = 33, posy_bs = 70, posy_siv = 56, posy_sih = 93, posy_can = 183;
-static float si_humidity, si_temperature, bs_humidity, bs_temperature, bs_pressure;
+static uint16_t posy_rtc = 3, posy_tsc = 33, posy_bs = 70, posy_siv = 56, posy_can = 103;
+static float bs_humidity, bs_temperature, bs_pressure;
 static uint32_t si_ir = 0, si_vis = 0, si_uv = 0;
 
 static void SystemClock_Config(void);
@@ -86,9 +93,19 @@ static void InitializeDevices()
   //MX_USB_DEVICE_Init();
 
   // AT45db
- /* MX_SPI1_Init();
+  MX_SPI1_Init();
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(_AT45DBXX_CS_GPIO, _AT45DBXX_CS_PIN, GPIO_PIN_RESET);
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  GPIO_InitStruct.Pin = _AT45DBXX_CS_PIN;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(_AT45DBXX_CS_GPIO, &GPIO_InitStruct);
+
+
   has_AT45db = AT45dbxx_Init();
-*/
+
   // ILI9341
   MX_SPI2_Init();
   ILI9341_Init();
@@ -107,9 +124,6 @@ static void InitializeDevices()
   // Si1132
   has_Si1132 = Si1132_init(&hi2c2, SI1132_SLAVE_ADDRESS);
 
-  // Si7021
-  has_Si7021 = Si7021_Init(&hi2c2);
-
   Relays_Init();
 
   // USB Connect
@@ -127,10 +141,6 @@ static void InitializeUI()
   ILI9341_WriteString(3, posy_rtc, "00:00:00 00.00", Font_16x26, GREEN, BLACK);
   ILI9341_WriteString(1, posy_bs, "T      H      P" , Font_11x18, CYAN, BLACK);
 
-  if (has_Si7021) {
-    ILI9341_WriteString(1, posy_sih, "T      H" , Font_11x18, CYAN, BLACK);
-  }
-
   if (has_Si1132) {
 	ILI9341_WriteString(1, posy_siv, "Vis        IR           UV", Font_7x10, CYAN, BLACK);
   }
@@ -140,6 +150,15 @@ static void InitializeUI()
   ILI9341_WriteString(80, posy_tsc, "V", Font_11x18, YELLOW, BLACK);
   ILI9341_WriteString(88, posy_tsc + 7, "BAT", Font_7x10, YELLOW, BLACK);
   ILI9341_WriteString(165, posy_tsc, "T", Font_11x18, YELLOW, BLACK);
+}
+
+
+static uint16_t GetNextPageNumber()
+{
+	uint16_t pageNumber = BKP->DR7;
+	pageNumber++;
+	BKP->DR7 = pageNumber;
+	return pageNumber;
 }
 
 int main(void)
@@ -159,11 +178,13 @@ int main(void)
   uint8_t buffer_tx_len = 0;
 */
 
+  telemetry_size = sizeof(Telemetry);
+
   while (1)
   {
 	HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
 	HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
-	Relays_Update(&sTime);
+	//Relays_Update(&sTime);
 
 	uint8_t seconds = sTime.Seconds;
 	ILI9341_WriteUInt(99, posy_rtc, seconds, 2, Font_16x26, GREEN, BLACK);
@@ -182,33 +203,31 @@ int main(void)
 
 	if (has_TSC) {
 		TSC_GetEnvironment(&TSC_Env);
+		Telemetry.Vin = 100*TSC_Env.Vin;
+		Telemetry.Vbat = 100*TSC_Env.Vbat;
+
 		ILI9341_WriteFloat(30,  posy_tsc, TSC_Env.Vin, 2, 4, Font_11x18, YELLOW, BLACK);
 		ILI9341_WriteFloat(113, posy_tsc, TSC_Env.Vbat, 2, 4, Font_11x18, YELLOW, BLACK);
-		ILI9341_WriteFloat(178, posy_tsc, TSC_Env.Temp0, 0, 2, Font_11x18, YELLOW, BLACK);
-
+		ILI9341_WriteFloat(178, posy_tsc, TSC_Env.Temp1, 0, 2, Font_11x18, YELLOW, BLACK);
+/*
 		TSC_GetTouchState(&TSC_State);
 		if (TSC_State.TouchDetected)
 		{
 			ILI9341_FillRectangle(TSC_State.X, TSC_State.Y, 3, 3, PINK);
 		}
+*/
 	}
 
 	success = true;
 	if (has_BME280) {
 		if (bmp280_read_float(&bmp280, &bs_temperature, &bs_pressure, &bs_humidity)) {
+			Telemetry.Tmp = 10*bs_temperature;
+			Telemetry.Humidity = 10*bs_humidity;
+			Telemetry.Pressure = 10*bs_pressure;
+
 			ILI9341_WriteFloat(20, posy_bs, bs_temperature, 1, 4, Font_11x18, CYAN, BLACK);
 			ILI9341_WriteFloat(95, posy_bs, bs_humidity, 1, 4, Font_11x18, CYAN, BLACK);
-			ILI9341_WriteFloat(190, posy_bs, bs_pressure, 0, 4, Font_11x18, CYAN, BLACK);
-		} else {
-			success &= false;
-			HAL_GPIO_TogglePin(LED_Port, LED_2);
-		}
-	}
-
-	if (has_Si7021) {
-		if (Si7021_ReadBoth(&si_humidity, &si_temperature)) {
-			ILI9341_WriteFloat(20, posy_sih, si_temperature, 1, 4, Font_11x18, CYAN, BLACK);
-			ILI9341_WriteFloat(95, posy_sih, si_humidity, 1, 4, Font_11x18, CYAN, BLACK);
+			ILI9341_WriteFloat(180, posy_bs, bs_pressure, 1, 4, Font_11x18, CYAN, BLACK);
 		} else {
 			success &= false;
 			HAL_GPIO_TogglePin(LED_Port, LED_2);
@@ -217,6 +236,10 @@ int main(void)
 
 	if (has_Si1132) {
 		if (Si1132_read(&si_ir, &si_vis, &si_uv)) {
+			Telemetry.Light.Vis = si_vis;
+			Telemetry.Light.IR = si_ir;
+			Telemetry.Light.UV = si_uv;
+
 			ILI9341_WriteInt(27, posy_siv, si_vis, 6, Font_7x10, CYAN, BLACK);
 			ILI9341_WriteInt(105, posy_siv, si_ir, 6, Font_7x10, CYAN, BLACK);
 			ILI9341_WriteInt(190, posy_siv, si_uv, 6, Font_7x10, CYAN, BLACK);
@@ -228,30 +251,41 @@ int main(void)
 
     if (success) {
     	while (!_fff_is_empty(CAN_RxBuffer)) {
+    		uint16_t messageId, deviceId, deviceY;
     		CAN_Message_TypeDef message = _fff_read_lite(CAN_RxBuffer);
-            switch (message.Id) {
-            case CAN_TMP75:
-            	ILI9341_WriteFloat(3, posy_can, message.Value, 2, 6, Font_11x18, GREENYELLOW, BLACK);
+    		messageId = message.Id;
+    		deviceId = messageId >> 8;
+    		deviceY = posy_can + deviceId * 60;
+    		messageId = (uint8_t)messageId;
+
+    		Telemetry_Device_TypeDef* device = (deviceId == 2) ? &(Telemetry.Device2) : &(Telemetry.Device1);
+
+    		switch (messageId) {
+            case CAN_Temp:
+
+            	ILI9341_WriteFloat(3, deviceY, message.Value, 2, 6, Font_11x18, GREENYELLOW, BLACK);
             	break;
 
             case CAN_Si7021_Temp:
-            	ILI9341_WriteFloat(88, posy_can, message.Value, 2, 6, Font_11x18, GREENYELLOW, BLACK);
+            	device->Tmp = (uint16_t)(message.Value * 10);
+            	ILI9341_WriteFloat(88, deviceY, message.Value, 2, 6, Font_11x18, GREENYELLOW, BLACK);
             	break;
 
             case CAN_Si7021_Humi:
-            	ILI9341_WriteFloat(173, posy_can, message.Value, 2, 6, Font_11x18, GREENYELLOW, BLACK);
+            	device->Humidity = (uint16_t)(message.Value * 10);
+            	ILI9341_WriteFloat(173, deviceY, message.Value, 2, 6, Font_11x18, GREENYELLOW, BLACK);
             	break;
 
             case CAN_MS5837_Temp:
-            	ILI9341_WriteFloat(3, posy_can + 30, message.Value, 2, 6, Font_11x18, GREENYELLOW, BLACK);
+            	ILI9341_WriteFloat(3, deviceY + 30, message.Value, 2, 6, Font_11x18, GREENYELLOW, BLACK);
             	break;
 
             case CAN_MS5837_Press:
-            	ILI9341_WriteFloat(88, posy_can + 30, message.Value, 1, 6, Font_11x18, GREENYELLOW, BLACK);
+            	ILI9341_WriteFloat(88, deviceY + 30, message.Value, 1, 6, Font_11x18, GREENYELLOW, BLACK);
             	break;
 
             case CAN_MS5837_Depth:
-            	ILI9341_WriteFloat(173, posy_can + 30, message.Value, 3, 6, Font_11x18, GREENYELLOW, BLACK);
+            	ILI9341_WriteFloat(173, deviceY + 30, message.Value, 3, 6, Font_11x18, GREENYELLOW, BLACK);
             	break;
 
             }
@@ -281,6 +315,57 @@ int main(void)
 			CDC_Transmit_FS((uint8_t*)buffer_tx, buffer_tx_len);
 */
     }
+
+
+    if (sTime.Seconds == 0 && sTime.Minutes % time_mod == 0)
+    {
+		telemetry_minutes = sTime.Minutes / time_mod;
+		telemetry_time = sTime.Hours * time_scale + telemetry_minutes;
+
+		if (telemetry_pre_time != telemetry_time)
+		{
+			telemetry_pre_time = telemetry_time;
+
+			Telemetry.Time.Y = sDate.Year;
+			Telemetry.Time.M = sDate.Month;
+			Telemetry.Time.D = sDate.Date;
+			Telemetry.Time.T = telemetry_time;
+
+			uint8_t *src = (uint8_t*)&Telemetry;
+			uint8_t *dest = RxFlashBuff;
+			uint16_t offset = telemetry_size * telemetry_minutes;
+			if (offset > FlashBuffSize)
+			{
+				HAL_GPIO_TogglePin(LED_Port, LED_2);
+			}
+			else
+			{
+				dest += offset;
+				memcpy(dest, src, telemetry_size);
+
+				if (telemetry_minutes == (time_scale-1))
+				{
+					telemetry_pageNumber = GetNextPageNumber();
+					AT45dbxx_WritePage(RxFlashBuff, FlashBuffSize, telemetry_pageNumber);
+				}
+			}
+		}
+
+		ILI9341_WriteUInt(3, 300, telemetry_pageNumber, 3, Font_11x18, ORANGE, BLACK);
+		ILI9341_WriteUInt(53, 300, telemetry_minutes, 3, Font_11x18, ORANGE, BLACK);
+    }
+
+    /*
+	uint8_t *src = (uint8_t*)&Telemetry;
+	uint8_t *dest = RxFlashBuff;
+	uint16_t offset = telemetry_size * telemetry_minutes;
+	dest += offset;
+	memcpy(dest, src, telemetry_size);
+
+	telemetry_pageNumber = GetNextPageNumber();
+	AT45dbxx_WritePage(RxFlashBuff, FlashBuffSize, telemetry_pageNumber);
+	AT45dbxx_ReadPage(TxFlashBuff, FlashBuffSize, telemetry_pageNumber);
+    */
 
     iters++;
     HAL_Delay(200);
@@ -337,6 +422,7 @@ void RTC_IRQHandler(void) {
 	}
 	fps = iters;
 	iters = 0;
+	HAL_GPIO_TogglePin(LED_Port, LED_0);
 /*
 	counter++;
 	uint8_t state = counter % 3;

@@ -123,7 +123,6 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* i2cHandle)
     PA10     ------> I2C1_SDA
     */
     HAL_GPIO_DeInit(GPIOA, GPIO_PIN_9);
-
     HAL_GPIO_DeInit(GPIOA, GPIO_PIN_10);
 
   /* USER CODE BEGIN I2C1_MspDeInit 1 */

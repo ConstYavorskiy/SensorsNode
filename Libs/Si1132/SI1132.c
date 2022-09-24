@@ -1,7 +1,7 @@
 #include "Si1132.h"
 
 static I2CSensor_HandleTypedef hSi1132;
-static bool is_indoor_usage = true;
+static const bool is_indoor_usage = false;
 
 /**
  @brief Search Device

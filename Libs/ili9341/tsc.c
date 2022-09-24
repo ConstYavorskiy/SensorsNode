@@ -69,10 +69,10 @@ const float VBatScale = 2.5 * 4 / 4096;
 void TSC_GetEnvironment(TSC_ENVIRONMENT_TypeDef* env)
 {
 	uint16_t t0 = TSC_Read(TSC_CMD_TEMP0);
-	// uint16_t t1 = TSC_Read(TSC_CMD_TEMP1);
+	uint16_t t1 = TSC_Read(TSC_CMD_TEMP1);
 
 	env->Temp0 = 3.0 * t0 / 100;
-	//env->Temp1 = 2.573 * (t1 - t0) - 273;
+	env->Temp1 = 2.573 * (t1 - t0) - 273;
 	env->Vin = (float)TSC_Read(TSC_CMD_VBAT1) * VBatScale;
 	env->Vbat = (float)TSC_Read(TSC_CMD_VBAT2) * VBatScale;
 }
