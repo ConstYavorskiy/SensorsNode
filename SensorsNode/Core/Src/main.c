@@ -184,7 +184,7 @@ int main(void)
   {
 	HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
 	HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
-	//Relays_Update(&sTime);
+	Relays_Update(&sTime);
 
 	uint8_t seconds = sTime.Seconds;
 	ILI9341_WriteUInt(99, posy_rtc, seconds, 2, Font_16x26, GREEN, BLACK);

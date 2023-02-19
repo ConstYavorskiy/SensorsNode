@@ -18,6 +18,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "rtc.h"
+#include "string.h"
 
 /* USER CODE BEGIN 0 */
 
@@ -53,19 +54,18 @@ void MX_RTC_Init(void)
   {
 	  BKP->DR7 = 0;
 
-
-	  sTime.Hours = 10;
-	  sTime.Minutes = 19;
+	  sTime.Hours = 20;
+	  sTime.Minutes = 26;
 	  sTime.Seconds = 0;
 	  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK)
 	  {
 	    Error_Handler();
 	  }
 
-	  sDate.WeekDay = RTC_WEEKDAY_SUNDAY;
-	  sDate.Date = 3;
-	  sDate.Month = 5;
-	  sDate.Year = 22;
+	  sDate.WeekDay = RTC_WEEKDAY_SATURDAY;
+	  sDate.Date = 13;
+	  sDate.Month = 2;
+	  sDate.Year = 23;
 	  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK)
 	  {
 	    Error_Handler();

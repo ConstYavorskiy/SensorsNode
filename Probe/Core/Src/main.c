@@ -100,8 +100,8 @@ int main(void)
   MX_I2C1_Init();
   // MX_SPI1_Init();
 
-  DeviceID = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6) << 1 | HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_7);
-  DeviceID <<= 8;
+ // DeviceID = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6) << 1 | HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_7);
+ // DeviceID <<= 8;
 
   MX_GPIO_PowerSave_Enter();
 
@@ -116,13 +116,19 @@ int main(void)
   TxHeader.DLC = 8;
   TxHeader.TransmitGlobalTime = 0;
 
-  HAL_CAN_Start(&hcan1);
-  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_ERROR | CAN_IT_BUSOFF | CAN_IT_LAST_ERROR_CODE);
+ // HAL_CAN_Start(&hcan1);
+  //HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_ERROR | CAN_IT_BUSOFF | CAN_IT_LAST_ERROR_CODE);
 
+  uint16_t delay = 100;
   while (1)	{
-	HAL_GPIO_WritePin(LED_Port, LED_0, 0);
-	HAL_Delay(1000);
-	HAL_GPIO_WritePin(LED_Port, LED_0, 1);
+	HAL_GPIO_TogglePin(LED_Port, LED_0);
+	HAL_Delay(delay);
+	HAL_GPIO_TogglePin(LED_Port, LED_1);
+	HAL_Delay(delay);
+	HAL_GPIO_TogglePin(LED_Port, LED_2);
+	HAL_Delay(delay);
+	HAL_GPIO_TogglePin(LED_Port, LED_3);
+	HAL_Delay(delay);
 
 	if (has_TMP75) {
 	  tmp = TMP75_Read_Temp();
