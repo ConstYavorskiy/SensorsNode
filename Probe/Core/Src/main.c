@@ -21,15 +21,21 @@
 #include "main.h"
 #include "can.h"
 #include "i2c.h"
-// #include "spi.h"
+#include "rtc.h"
+#include "spi.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "BME280/bme280.h"
 #include "TMP75/TMP75.h"
 #include "Si7021/Si7021.h"
 #include "MS5837/MS5837.h"
 #include "Sensors/CANSensor.h"
+
+#include "AT45DBxx/AT45DBxx.h"
+#include "AT45DBxx/AT45DBxxConfig.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,6 +56,10 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+static RTC_TimeTypeDef sTime = { 0 };
+static RTC_DateTypeDef sDate = { 0 };
+
+static BMP280_HandleTypedef bme280;
 
 static CAN_TxHeaderTypeDef TxHeader;
 static CAN_RxHeaderTypeDef RxHeader;
@@ -69,8 +79,9 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 static uint16_t DeviceID = 0;
-static bool has_TMP75 = false, has_Si1132 = false, has_Si7021 = false, has_MS5837 = false;
+static bool has_TMP75 = false, has_Si1132 = false, has_Si7021 = false, has_MS5837 = false, has_BME280 = false, has_AT45db = false;
 static float tmp = 0.0, si_humidity = 0.0, si_temperature = 0.0, ms_temperature = 0.0, ms_pressure = 0.0, ms_depth = 0.0;
+static uint8_t switch1 = 0, switch2 = 0;
 
 static MS5837_t dataMS5837;
 
@@ -82,7 +93,6 @@ static void CAN_SendSensorData(uint16_t sid, float value)
   HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
 }
 
-
 /* USER CODE END 0 */
 
 /**
@@ -91,23 +101,48 @@ static void CAN_SendSensorData(uint16_t sid, float value)
   */
 int main(void)
 {
+  /* USER CODE BEGIN 1 */
+
+  /* USER CODE END 1 */
+
+  /* MCU Configuration--------------------------------------------------------*/
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
+
+  /* USER CODE BEGIN Init */
+
+  /* USER CODE END Init */
+
+  /* Configure the system clock */
   SystemClock_Config();
+
+  /* USER CODE BEGIN SysInit */
+
+  /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_CAN1_Init();
   MX_I2C1_Init();
-  // MX_SPI1_Init();
-
- // DeviceID = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6) << 1 | HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_7);
- // DeviceID <<= 8;
-
-  MX_GPIO_PowerSave_Enter();
+  MX_SPI1_Init();
+  MX_RTC_Init();
+  /* USER CODE BEGIN 2 */
+  // DeviceID = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6) << 1 | HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_7);
+  // DeviceID <<= 8;
+  // MX_GPIO_PowerSave_Enter();
 
   has_TMP75 = TMP75_Init(&hi2c1, 0b1001000);
   has_Si7021 = Si7021_Init(&hi2c1);
   has_MS5837 = MS5837_Init(&hi2c1, &dataMS5837);
+
+  // BME280
+  bmp280_init_default_params(&bme280.params);
+  bme280.addr = BMP280_I2C_ADDRESS_1;
+  bme280.i2c = &hi2c1;
+  has_BME280 = bmp280_init(&bme280, &bme280.params);
+
+  has_AT45db = AT45dbxx_Init();
 
   TxHeader.StdId = 0x0100;
   TxHeader.ExtId = 0;
@@ -116,19 +151,31 @@ int main(void)
   TxHeader.DLC = 8;
   TxHeader.TransmitGlobalTime = 0;
 
- // HAL_CAN_Start(&hcan1);
+  //HAL_CAN_Start(&hcan1);
   //HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_ERROR | CAN_IT_BUSOFF | CAN_IT_LAST_ERROR_CODE);
 
+  /* USER CODE END 2 */
+
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
   uint16_t delay = 100;
-  while (1)	{
-	HAL_GPIO_TogglePin(LED_Port, LED_0);
-	HAL_Delay(delay);
+  while (1)
+  {
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+	HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+	HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+
+
+
 	HAL_GPIO_TogglePin(LED_Port, LED_1);
 	HAL_Delay(delay);
-	HAL_GPIO_TogglePin(LED_Port, LED_2);
-	HAL_Delay(delay);
-	HAL_GPIO_TogglePin(LED_Port, LED_3);
-	HAL_Delay(delay);
+
+	switch1 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0);
+	switch2 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_1);
+	HAL_GPIO_WritePin(LED_Port, LED_3, switch1);
+	HAL_GPIO_WritePin(LED_Port, LED_4, switch2);
 
 	if (has_TMP75) {
 	  tmp = TMP75_Read_Temp();
@@ -157,6 +204,7 @@ int main(void)
 	  }
 	}
   }
+  /* USER CODE END 3 */
 }
 
 /**
@@ -174,23 +222,31 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+
+  /** Configure LSE Drive Capability
+  */
+  HAL_PWR_EnableBkUpAccess();
+  __HAL_RCC_LSEDRIVE_CONFIG(RCC_LSEDRIVE_LOW);
+
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSE;
+  RCC_OscInitStruct.LSEState = RCC_LSE_ON;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 1;
-  RCC_OscInitStruct.PLL.PLLN = 8;
+  RCC_OscInitStruct.PLL.PLLM = 4;
+  RCC_OscInitStruct.PLL.PLLN = 40;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
-  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV8;
+  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
   }
+
   /** Initializes the CPU, AHB and APB buses clocks
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
@@ -200,7 +256,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
   {
     Error_Handler();
   }
@@ -221,6 +277,11 @@ void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan)
 	HAL_GPIO_WritePin(LED_Port, LED_2, 1);
 	HAL_Delay(1);
 	HAL_GPIO_WritePin(LED_Port, LED_2, 0);
+}
+
+void RTC_WKUP_Handler(void)
+{
+	HAL_GPIO_TogglePin(LED_Port, LED_2);
 }
 
 /* USER CODE END 4 */

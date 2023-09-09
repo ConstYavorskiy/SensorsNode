@@ -52,18 +52,20 @@ extern "C" {
 
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
+void RTC_WKUP_Handler();
 
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+
 /* USER CODE BEGIN Private defines */
 
-#define LED_0 GPIO_PIN_0
-#define LED_1 GPIO_PIN_1
-#define LED_2 GPIO_PIN_2
-#define LED_3 GPIO_PIN_3
+#define LED_1 GPIO_PIN_0
+#define LED_2 GPIO_PIN_1
+#define LED_3 GPIO_PIN_2
+#define LED_4 GPIO_PIN_3
 #define LED_Port GPIOA
 
 /* USER CODE END Private defines */

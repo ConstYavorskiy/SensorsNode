@@ -1,3 +1,4 @@
+/* USER CODE BEGIN Header */
 /**
   ******************************************************************************
   * @file    i2c.h
@@ -6,7 +7,7 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2021 STMicroelectronics.
+  * Copyright (c) 2023 STMicroelectronics.
   * All rights reserved.
   *
   * This software is licensed under terms that can be found in the LICENSE file
@@ -15,6 +16,7 @@
   *
   ******************************************************************************
   */
+/* USER CODE END Header */
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __I2C_H__
 #define __I2C_H__
@@ -31,6 +33,7 @@ extern "C" {
 /* USER CODE END Includes */
 
 extern I2C_HandleTypeDef hi2c1;
+
 extern I2C_HandleTypeDef hi2c2;
 
 /* USER CODE BEGIN Private defines */
