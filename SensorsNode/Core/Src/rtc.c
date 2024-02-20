@@ -54,8 +54,8 @@ void MX_RTC_Init(void)
   {
 	  BKP->DR7 = 0;
 
-	  sTime.Hours = 12;
-	  sTime.Minutes = 0;
+	  sTime.Hours = 16;
+	  sTime.Minutes = 13;
 	  sTime.Seconds = 0;
 	  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK)
 	  {
@@ -63,9 +63,9 @@ void MX_RTC_Init(void)
 	  }
 
 	  sDate.WeekDay = RTC_WEEKDAY_SATURDAY;
-	  sDate.Date = 9;
-	  sDate.Month = 9;
-	  sDate.Year = 23;
+	  sDate.Date = 13;
+	  sDate.Month = 1;
+	  sDate.Year = 24;
 	  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK)
 	  {
 	    Error_Handler();

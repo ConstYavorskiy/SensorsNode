@@ -40,6 +40,16 @@ void Relays_Update(RTC_TimeTypeDef *sTime)
 		HAL_GPIO_WritePin(Relay_Port, Relay1_Pin, 1);
 	}
 
+	if ((sTime->Hours >= 10 && sTime->Hours < 12) || (sTime->Hours >= 16 && sTime->Hours < 18))
+	{
+		HAL_GPIO_WritePin(Relay_Port, Relay2_Pin, 0);
+	}
+	else
+	{
+		HAL_GPIO_WritePin(Relay_Port, Relay2_Pin, 1);
+	}
+
+	/*
 	if ((sTime->Minutes >= 6  && sTime->Minutes <= 23)
 	||  (sTime->Minutes >= 36 && sTime->Minutes <= 55))
 	{
@@ -49,4 +59,5 @@ void Relays_Update(RTC_TimeTypeDef *sTime)
 	{
 		HAL_GPIO_WritePin(Relay_Port, Relay2_Pin, 0);
 	}
+	*/
 }
